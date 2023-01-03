@@ -1,3 +1,40 @@
+/// A type that can log messages in a simplified way.
+///
+/// It allows you not to specify a sender of a log message because the sender is always this object.
+public protocol RASimplifiedLoggable {
+    
+    /// Logs a message in a simplified way by specifying a sender as this object.
+    ///
+    /// Call this method when you need to log a message on behalf of this object.
+    /// For example, if you use a console logger inside the main module:
+    ///
+    ///     log("something went wrong", as: .error)
+    ///     // Prints "[Logger] 10:12:55 PM <error> Main-Module: something went wrong."
+    ///
+    /// - Parameter message: A string to log.
+    /// - Parameter level: A level with which this message will be logged.
+    func log(_ message: String, as level: RALogLevel) -> Void
+    
+}
+
+public extension RASimplifiedLoggable where Self: (RAObject & RALoggerHolder) {
+    
+    func log(_ message: String, as level: RALogLevel) -> Void {
+        logger?.log(message, as: level, from: description)
+    }
+    
+}
+
+
+/// A type that has a logger.
+public protocol RALoggerHolder {
+    
+    /// A logger that can log messages.
+    var logger: RALogger? { get }
+    
+}
+
+
 /// A type that can log the messages.
 ///
 /// All key components, such as the modules, interactors, routers, views and builders use a logger that is set for the root module.
