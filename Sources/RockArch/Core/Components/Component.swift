@@ -1,8 +1,8 @@
-/// A single responsibility component that is a part of architecture.
+/// A single responsibility component that is a part of the architecture.
 ///
 /// The `RAComponent` protocol is a basis of all key components, such as the `RAModule` objects,
 /// the `RAInteractor` objects, the `RARouter` objects, the `RAView` objects and the `RABuilder` objects.
-/// They constitute the backbone of an application architecture.
+/// They constitute the backbone of the application architecture.
 public protocol RAComponent: RAObject, RALoggerHolder, RASimplifiedLoggable {
     
     /// The current state of this component.
