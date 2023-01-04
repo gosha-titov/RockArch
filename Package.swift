@@ -3,26 +3,31 @@
 
 import PackageDescription
 
+let libraryName = "RockArch"
+let packageName = libraryName
+let targetName  = libraryName
+let testTargetName = targetName + "Tests"
+
 let package = Package(
-    name: "RockArch",
-    products: [
-        // Products define the executables and libraries a package produces, and make them visible to other packages.
-        .library(
-            name: "RockArch",
-            targets: ["RockArch"]),
+    name: packageName,
+    platforms: [
+        .iOS(.v12)
     ],
-    dependencies: [
-        // Dependencies declare other packages that this package depends on.
-        // .package(url: /* package url */, from: "1.0.0"),
+    products: [
+        .library(
+            name: libraryName,
+            targets: [targetName]),
     ],
     targets: [
-        // Targets are the basic building blocks of a package. A target can define a module or a test suite.
-        // Targets can depend on other targets in this package, and on products in packages this package depends on.
         .target(
-            name: "RockArch",
-            dependencies: []),
+            name: targetName,
+            dependencies: []
+        ),
         .testTarget(
-            name: "RockArchTests",
-            dependencies: ["RockArch"]),
-    ]
+            name: testTargetName,
+            dependencies: [.init(stringLiteral: targetName)]
+        ),
+    ],
+    swiftLanguageVersions: [.v5]
 )
+
