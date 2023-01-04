@@ -63,7 +63,7 @@ public extension RALogger {
 /// A level associated how important a log message is.
 ///
 /// There are 6 kinds of log level: trace, debug, info, warning, error and fatal.
-public enum RALogLevel: Int {
+public enum RALogLevel: Int, CaseIterable {
     
     /// The most detailed information of all levels that's used in rare cases where you need the full visibility of what happening in your application.
     /// In this case, the logging is very verbose where you see every step of an algorithm, method, etc.
@@ -88,6 +88,18 @@ public enum RALogLevel: Int {
     /// The information that tells that the application encountered an event or entered a state in which one of the crucial business functionality is no longer working.
     /// As a result, the application may crash.
     case fatal
+    
+    /// An emoji associated with this log level.
+    public var emoji: String {
+        switch self {
+        case .trace:   return "⚪️"
+        case .debug:   return "🟢"
+        case .info:    return "🔵"
+        case .warning: return "🟡"
+        case .error:   return "🟠"
+        case .fatal:   return "🔴"
+        }
+    }
     
 }
 
