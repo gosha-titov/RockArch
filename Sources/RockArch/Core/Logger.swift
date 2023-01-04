@@ -19,7 +19,7 @@ public protocol RASimplifiedLoggable {
 
 public extension RASimplifiedLoggable where Self: (RAObject & RALoggerHolder) {
     
-    func log(_ message: String, as level: RALogLevel) -> Void {
+    func log(_ message: String, as level: RALogLevel = .debug) -> Void {
         logger?.log(message, as: level, from: description)
     }
     
