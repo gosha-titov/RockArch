@@ -28,13 +28,13 @@ public struct RAInfo {
     let function: String
     
     /// The number of the line.
-    let line: UInt
+    let line: Int
     
     /// Creates an instance of the source information.
     /// - Parameter fileID:   Pass value of the `#fileID` literal.
     /// - Parameter function: Pass value of the `#function` literal.
     /// - Parameter line:     Pass value of the `#line` literal.
-    public init(fileID: String = #fileID, function: String = #function, line: UInt = #line) {
+    public init(fileID: String = #fileID, function: String = #function, line: Int = #line) {
         self.file = RAFileInfo(fileID: fileID)
         self.function = function
         self.line = line
