@@ -30,7 +30,7 @@ public struct RAInfo {
     /// The number of the line.
     let line: Int
     
-    /// Creates an instance of the source information.
+    /// Creates an instance of the information about a file, function and line.
     /// - Parameter fileID:   Pass value of the `#fileID` literal.
     /// - Parameter function: Pass value of the `#function` literal.
     /// - Parameter line:     Pass value of the `#line` literal.
