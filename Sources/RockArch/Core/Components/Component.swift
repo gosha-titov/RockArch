@@ -3,7 +3,7 @@
 /// The `RAComponent` protocol is a basis of all key components, such as the `RAModule` objects,
 /// the `RAInteractor` objects, the `RARouter` objects, the `RAView` objects and the `RABuilder` objects.
 /// They constitute the backbone of the application architecture.
-public protocol RAComponent: RAObject, RALoggerHolder, RASimplifiedLoggable {
+public protocol RAComponent: RAObject, RASimplifiedLoggable {
     
     /// The current state of this component.
     var state: RAComponentState { get }
