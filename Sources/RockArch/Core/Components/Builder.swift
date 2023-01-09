@@ -1,5 +1,5 @@
 /// A builder that can build child modules by their associated names.
-open class RABuilder: RAComponent {
+open class RABuilder: RAComponent, RAModuleBelongable {
     
     // MARK: - Properties
     
@@ -14,11 +14,6 @@ open class RABuilder: RAComponent {
     /// The current state of the module to that this router belongs.
     public final var state: RAComponentState {
         return _module?.state ?? .inactive
-    }
-    
-    /// A logger that logs messages.
-    public final var logger: RALogger? {
-        return _module?.logger
     }
     
     /// An internal module to that this router belongs.
@@ -84,14 +79,16 @@ open class RABuilder: RAComponent {
     ///
     /// You should return a result of calling the `super` method when you cannot build a module.
     open func build(by name: String) -> RAModule {
-        log("cannot build a module by name `\(name)`", as: .error)
-        return RAUnusableModule()
+        log("Cannot build a module by name `\(name)`", category: "ChildManagement", level: .error)
+        return RAEmptyModule()
     }
     
     
     // MARK: - Public Init
     
     /// Creates a builder.
-    public init() {}
+    public init() {
+        RALeakDetector.register(self)
+    }
     
 }
