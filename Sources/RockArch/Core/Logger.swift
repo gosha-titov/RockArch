@@ -1,5 +1,36 @@
 import Foundation
 
+/// A default logger that prints messages to the console.
+///
+/// You don't interact with this logger directly. You can only use it as one of the parameters for the black box.
+/// The console black box uses this logger by default.
+///
+/// The console logger prints incoming messages in the following way:
+///
+///     "[Network] 17:46:52 PM <error> Weather-Service: No internet connection."
+///      category   timestamp   level      author                text
+///
+public final class RAConsoleLogger: RALogger {
+    
+    /// A string associated with the name of this logger.
+    public let name = "Console"
+    
+    /// Logs a specific message.
+    public final func log(_ message: RALogMessage) -> Void {
+        guard message.text.isEmpty == false else { return }
+        let formatter = DateFormatter()
+        formatter.timeStyle = .medium
+        let time = formatter.string(from: message.timestamp)
+        let category = message.category.isEmpty ? "Unspecified" : message.category
+        let author   = message.author.isEmpty   ? "Unspecified" : message.author
+        let level = message.level.rawValue
+        let text = message.text
+        print("[\(category)] \(time) <\(level)> \(author): \(text).")
+    }
+    
+}
+
+
 /// A type that can log messages in a simplified way.
 ///
 /// It allows you not to specify an author of a log message because the author is always this object.
@@ -24,9 +55,9 @@ public protocol RASimplifiedLoggable where Self: RAObject {
     ///
     ///     "[Network] 7:26:33 PM <error> Main-Interactor: No internet connection."
     ///
-    /// - Parameter message: A string to log.
+    /// - Parameter message:  A string to log.
     /// - Parameter category: A string that describes a category of this message.
-    /// - Parameter level: A level with which this message will be logged.
+    /// - Parameter level:    A level with which this message will be logged.
     func log(_ message: String, category: String, level: RALogLevel, fileID: String, function: String, line: Int) -> Void
     
 }
