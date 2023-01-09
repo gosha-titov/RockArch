@@ -39,9 +39,7 @@ open class RABlackBox {
     /// - Parameter category: A string that describes a category of this message.
     /// - Parameter level:    A level associated how important this message is.
     public static func log(_ message: String, author: String, category: String, level: RALogLevel, fileID: String = #fileID, function: String = #function, line: Int = #line) -> Void {
-        let info = RAInfo(fileID: fileID, function: function, line: line)
-        let message = RALogMessage(author: author, text: message, category: category, level: level, info: info)
-        current.log(message)
+        current.log(message, author: author, category: category, level: .trace, fileID: fileID, function: function, line: line)
     }
     
     
@@ -53,14 +51,22 @@ open class RABlackBox {
     /// The queue in which logging performs.
     public let queue: DispatchQueue
     
+    
+    // MARK: - Public Methods
+    
     /// Logs a specific message by passing it to its loggers.
-    public final func log(_ message: RALogMessage) -> Void {
+    public final func log(_ message: String, author: String, category: String, level: RALogLevel, fileID: String = #fileID, function: String = #function, line: Int = #line) -> Void {
         queue.async {
+            let info = RAInfo(fileID: fileID, function: function, line: line)
+            let message = RALogMessage(author: author, text: message, category: category, level: level, info: info)
             for logger in self.loggers {
                 logger.log(message)
             }
         }
     }
+    
+    
+    // MARK: - Public Init
     
     /// Creates a black box with specific loggers that will log messages in this queue.
     /// - Parameter loggers: Loggers that will receive all messages coming into this black box.
