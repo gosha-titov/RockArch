@@ -3,20 +3,20 @@ open class RABuilder: RAComponent, RAModuleBelongable {
     
     // MARK: - Properties
     
-    /// A name of the module to that this router belongs.
+    /// A name of the module to that this builder belongs.
     public final var name: String {
         return _module?.name ?? "Unnamed"
     }
     
-    /// A textual representation of the type of this router.
+    /// A textual representation of the type of this builder.
     public let type: String = "Builder"
     
-    /// The current state of the module to that this router belongs.
+    /// The current state of the module to that this builder belongs.
     public final var state: RAComponentState {
         return _module?.state ?? .inactive
     }
     
-    /// An internal module to that this router belongs.
+    /// An internal module to that this builder belongs.
     internal weak var _module: RAModule?
     
     
