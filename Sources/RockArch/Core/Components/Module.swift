@@ -26,7 +26,7 @@ open class RAModule: RAComponent {
     public private(set) var isLoaded: Bool = false
     
     
-    // MARK: - Internal Components
+    // MARK: Internal Components
     
     /// The internal interactor of this module.
     internal let interactor: RAAbstractInteractor
@@ -45,38 +45,63 @@ open class RAModule: RAComponent {
     
     /// Called when a parent module loads this module into its memory.
     internal final func load() -> Void {
-        defer { log("loaded into memory", category: "ModuleLifecycle") }
+        defer { log("Loaded into memory", category: "ModuleLifecycle") }
+        connectComponents()
         isLoaded = true
     }
     
     /// Called when a parent module starts this module.
     internal final func start() -> Void {
-        defer { log("started working", category: "ModuleLifecycle") }
+        defer { log("Started working", category: "ModuleLifecycle") }
         state = .active
     }
     
     /// Called when this module starts a child module.
     internal final func suspend() -> Void {
-        defer { log("suspended working", category: "ModuleLifecycle") }
+        defer { log("Suspended working", category: "ModuleLifecycle") }
         state = .suspended
     }
     
     /// Called when a child module stops its work.
     internal final func resume() -> Void {
-        defer { log("resumed working", category: "ModuleLifecycle") }
+        defer { log("Resumed working", category: "ModuleLifecycle") }
         state = .active
     }
     
     /// Called when this module should stop its work for some reason.
     internal final func stop() -> Void {
-        defer { log("stopped working", category: "ModuleLifecycle") }
+        defer { log("Stopped working", category: "ModuleLifecycle") }
         state = .inactive
     }
     
     /// Called when a parent module unloads this module from its memory.
     internal final func unload() -> Void {
-        defer { log("unloaded from memory", category: "ModuleLifecycle") }
+        defer { log("Unloaded from memory", category: "ModuleLifecycle") }
+        disconnectComponents()
         isLoaded = false
+    }
+    
+    
+    // MARK: - Connecting and Disconnecting Components
+    
+    /// Connects components to each other and to this module.
+    private func connectComponents() -> Void {
+        view?._interactor = interactor
+        interactor._router = router
+        interactor._view = view
+        interactor._module = self
+        router._module = self
+        view?._module = self
+    }
+    
+    /// Disconnects components from each other and from this module.
+    private func disconnectComponents() -> Void {
+        view?._interactor = nil
+        interactor._router = nil
+        interactor._view = nil
+        interactor._module = nil
+        router._module = nil
+        view?._module = nil
     }
     
     
@@ -105,7 +130,7 @@ open class RAModule: RAComponent {
     /// If this module don't have child modules, then pass `nil` (default).
     ///
     public init(name: String, interactor: RAAbstractInteractor, router: RARouter, view: RAAbstractView? = nil, builder: RABuilder? = nil) {
-        defer { log("created", category: "ModuleLifecycle") }
+        defer { log("Created", category: "ModuleLifecycle") }
         self.name = name
         self.interactor = interactor
         self.router = router
@@ -115,7 +140,7 @@ open class RAModule: RAComponent {
     }
     
     deinit {
-        log("deleted", category: "ModuleLifecycle")
+        log("Deleted", category: "ModuleLifecycle")
     }
     
 }
