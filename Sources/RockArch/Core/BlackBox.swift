@@ -1,0 +1,101 @@
+import Foundation
+
+/// The black box that records all incoming messages by passing them to its loggers.
+open class RABlackBox {
+    
+    // MARK: - Static
+    
+    /// The black box that is currently in use.
+    public static var current: RABlackBox = .console
+    
+    /// The black box that uses a default console logger.
+    public static let console: RABlackBox = {
+        let logger = RAConsoleLogger()
+        let queue = DispatchQueue(label: "blackbox-console", qos: .background)
+        return RABlackBox(loggers: [logger], queue: queue)
+    }()
+    
+    /// Passes this message to the loggers of the current black box.
+    ///
+    /// You usually don't use this log method directly:
+    ///
+    ///     RABlackBox.log(
+    ///         "No internet connection",
+    ///         author: "Weather-Service",
+    ///         category: "Network",
+    ///         level: .error
+    ///     )
+    ///
+    /// Instead, you call the static method corresponding to a log level of your message:
+    ///
+    ///     RABlackBox.error(
+    ///         "No internet connection",
+    ///         author: "Weather-Service",
+    ///         category: "Network"
+    ///     )
+    ///
+    /// - Parameter message:  A string to log.
+    /// - Parameter author:   A string that describes an author of this message.
+    /// - Parameter category: A string that describes a category of this message.
+    /// - Parameter level:    A level associated how important this message is.
+    public static func log(_ message: String, author: String, category: String, level: RALogLevel, fileID: String = #fileID, function: String = #function, line: Int = #line) -> Void {
+        let info = RAInfo(fileID: fileID, function: function, line: line)
+        let message = RALogMessage(author: author, text: message, category: category, level: level, info: info)
+        current.log(message)
+    }
+    
+    
+    // MARK: - Public Properties
+    
+    /// Loggers that receive all messages from this black box.
+    public let loggers: [RALogger]
+    
+    /// The queue in which logging performs.
+    public let queue: DispatchQueue
+    
+    /// Logs a specific message by passing it to its loggers.
+    public final func log(_ message: RALogMessage) -> Void {
+        queue.async {
+            for logger in self.loggers {
+                logger.log(message)
+            }
+        }
+    }
+    
+    /// Creates a black box with specific loggers that will log messages in this queue.
+    /// - Parameter loggers: Loggers that will receive all messages coming into this black box.
+    /// - Parameter queue: A queue in which logging will be performed. To keep the correct order of messages, pass a serial queue.
+    public init(loggers: [RALogger], queue: DispatchQueue = .init(label: "blackbox-custom", qos: .background)) {
+        self.loggers = loggers
+        self.queue = queue
+    }
+    
+}
+
+extension RABlackBox {
+    
+    public static func trace(_ message: String, author: String, category: String, fileID: String = #fileID, function: String = #function, line: Int = #line) -> Void {
+        log(message, author: author, category: category, level: .trace, fileID: fileID, function: function, line: line)
+    }
+    
+    public static func debug(_ message: String, author: String, category: String, fileID: String = #fileID, function: String = #function, line: Int = #line) -> Void {
+        log(message, author: author, category: category, level: .debug, fileID: fileID, function: function, line: line)
+    }
+    
+    public static func info(_ message: String, author: String, category: String, fileID: String = #fileID, function: String = #function, line: Int = #line) -> Void {
+        log(message, author: author, category: category, level: .info, fileID: fileID, function: function, line: line)
+    }
+    
+    public static func warning(_ message: String, author: String, category: String, fileID: String = #fileID, function: String = #function, line: Int = #line) -> Void {
+        log(message, author: author, category: category, level: .warning, fileID: fileID, function: function, line: line)
+    }
+    
+    public static func error(_ message: String, author: String, category: String, fileID: String = #fileID, function: String = #function, line: Int = #line) -> Void {
+        log(message, author: author, category: category, level: .error, fileID: fileID, function: function, line: line)
+    }
+    
+    public static func fatal(_ message: String, author: String, category: String, fileID: String = #fileID, function: String = #function, line: Int = #line) -> Void {
+        log(message, author: author, category: category, level: .fatal, fileID: fileID, function: function, line: line)
+    }
+    
+}
