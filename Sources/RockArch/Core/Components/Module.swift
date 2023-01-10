@@ -46,7 +46,7 @@ open class RAModule: RAComponent {
     /// Called when a parent module loads this module into its memory.
     internal final func load() -> Void {
         defer { log("Loaded into memory", category: "ModuleLifecycle") }
-        connectComponents()
+        assemble()
         isLoaded = true
     }
     
@@ -77,15 +77,15 @@ open class RAModule: RAComponent {
     /// Called when a parent module unloads this module from its memory.
     internal final func unload() -> Void {
         defer { log("Unloaded from memory", category: "ModuleLifecycle") }
-        disconnectComponents()
+        disassemble()
         isLoaded = false
     }
     
     
     // MARK: - Connecting and Disconnecting Components
     
-    /// Connects components to each other and to this module.
-    private func connectComponents() -> Void {
+    /// Assembles this module by connecting its components to each other and to itself.
+    private func assemble() -> Void {
         view?._interactor = interactor
         interactor._router = router
         interactor._view = view
@@ -94,8 +94,8 @@ open class RAModule: RAComponent {
         view?._module = self
     }
     
-    /// Disconnects components from each other and from this module.
-    private func disconnectComponents() -> Void {
+    /// Disassembles this module by disconnecting components from each other and from itself.
+    private func disassemble() -> Void {
         view?._interactor = nil
         interactor._router = nil
         interactor._view = nil
