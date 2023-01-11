@@ -47,6 +47,9 @@ open class RAModule: RAComponent {
     /// The internal builder of this module, or `nil`.
     internal let builder: RABuilder?
     
+    /// The object that acts as the delegate of this module.
+    internal let delegate: RAModuleLifecycleDelegate
+    
     
     // MARK: Private Properties
     
@@ -178,12 +181,51 @@ open class RAModule: RAComponent {
         self.router = router
         self.view = view
         self.builder = builder
+        delegate = interactor
         RALeakDetector.register(self)
     }
     
     deinit {
         log("Deleted", category: RACategory.moduleLifecycle)
     }
+    
+}
+
+
+public protocol RAModuleLifecycleDelegate where Self: RAObject {
+    
+    /// Called when the module is about to be loaded into memory.
+    func moduleShouldLoad(byInjecting dependency: RADependency?) -> Bool
+    
+    /// Called after the module is loaded into the parent memory.
+    func moduleDidLoad() -> Void
+    
+    /// Called when the module is about to be started.
+    func moduleShouldStart(within context: RAContext?) -> Bool
+    
+    /// Called after the module is started.
+    func moduleDidStart() -> Void
+    
+    /// Called when the module is about to be suspended.
+    func moduleWillSuspend() -> Void
+    
+    /// Called after the module is suspended.
+    func moduleDidSuspend() -> Void
+    
+    /// Called when the module is about to be resumed.
+    func moduleWillResume() -> Void
+    
+    /// Called after the module is resumed.
+    func moduleDidResume() -> Void
+    
+    /// Called when the module should be stopped.
+    func moduleShouldStop() -> RAOutcome?
+    
+    /// Called after the module is stopped.
+    func moduleDidStop() -> Void
+    
+    /// Called when the module is about to be unloaded from parent memory.
+    func moduleWillUnload() -> Void
     
 }
 
