@@ -94,9 +94,9 @@ public extension RALogger {
 }
 
 
-/// An object that represents a personalized log message that also contains a context within which it's created.
+/// A personalized log message that also contains a context within which it's created.
 ///
-/// You almost never create a log message directly. You only process and/or filter it. The log messages look something like this:
+/// You almost never create a log message directly. You only process and/or filter it. The log messages looks something like this:
 ///
 ///     message.author        // "Menu-Interactor"
 ///     message.text          // "User gained 97 points out of 100"
