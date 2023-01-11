@@ -2,7 +2,7 @@ import Foundation
 
 /// A default logger that prints messages to the console.
 ///
-/// You don't interact with this logger directly. You can only use it as one of the parameters for the black box.
+/// You don't interact with this logger directly. You use it as one of the parameters for the black box.
 /// The console black box uses this logger by default.
 ///
 /// The console logger prints incoming messages in the following way:
@@ -132,11 +132,11 @@ public struct RALogMessage {
     public let uuid: UUID
     
     /// Creates a log instance.
-    /// - Parameter author: A string that describes an author of this log message.
-    /// - Parameter text: A text of this log message.
+    /// - Parameter author:   A string that describes an author of this log message.
+    /// - Parameter text:     A text of this log message.
     /// - Parameter category: A string that describes a category of this log message.
-    /// - Parameter level: A level associated how important this log message is.
-    /// - Parameter info: An information about a file, function and line in which this log messasge is created.
+    /// - Parameter level:    A level associated how important this log message is.
+    /// - Parameter info:     An information about a file, function and line in which this log messasge is created.
     public init(author: String, text: String, category: String, level: RALogLevel, info: RAInfo) {
         self.author = author
         self.text = text
