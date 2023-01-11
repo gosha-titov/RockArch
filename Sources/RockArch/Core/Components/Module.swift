@@ -2,6 +2,10 @@ import UIKit
 
 open class RAModule: RAComponent {
     
+    /// The root module of the application.
+    internal private(set) static var root: RAModule? = nil
+    
+    
     // MARK: - Public Properties
     
     /// A string associated with the name of this module.
@@ -26,7 +30,10 @@ open class RAModule: RAComponent {
     public private(set) var isLoaded: Bool = false
     
     
-    // MARK: Internal Components
+    // MARK: Internal Properties
+    
+    /// A parent module that owns this module, or `nil`.
+    internal weak var parent: RAModule?
     
     /// The internal interactor of this module.
     internal let interactor: RAAbstractInteractor
@@ -41,48 +48,42 @@ open class RAModule: RAComponent {
     internal let builder: RABuilder?
     
     
-    // MARK: - Lifecycle
+    // MARK: Private Properties
     
-    /// Called when a parent module loads this module into its memory.
-    internal final func load() -> Void {
-        defer { log("Loaded into memory", category: "ModuleLifecycle") }
-        assemble()
-        isLoaded = true
+    /// A dictionary that stores created and loaded child modules.
+    private var children = [String: RAModule]()
+    
+    
+    // MARK: - Child Management
+    
+    /// Adds a specific module to children by its name.
+    private func attach(_ child: RAModule) -> Void {
+        children[child.name] = child
+        child.parent = self
     }
     
-    /// Called when a parent module starts this module.
-    internal final func start() -> Void {
-        defer { log("Started working", category: "ModuleLifecycle") }
-        state = .active
+    /// Removes a specific module from children by its name.
+    private func detach(_ child: RAModule) -> Void {
+        children.removeValue(forKey: child.name)
+        child.parent = nil
     }
     
-    /// Called when this module starts a child module.
-    internal final func suspend() -> Void {
-        defer { log("Suspended working", category: "ModuleLifecycle") }
-        state = .suspended
-    }
-    
-    /// Called when a child module stops its work.
-    internal final func resume() -> Void {
-        defer { log("Resumed working", category: "ModuleLifecycle") }
-        state = .active
-    }
-    
-    /// Called when this module should stop its work for some reason.
-    internal final func stop() -> Void {
-        defer { log("Stopped working", category: "ModuleLifecycle") }
-        state = .inactive
-    }
-    
-    /// Called when a parent module unloads this module from its memory.
-    internal final func unload() -> Void {
-        defer { log("Unloaded from memory", category: "ModuleLifecycle") }
-        disassemble()
-        isLoaded = false
+    /// Builds a specific child module by its name if possible.
+    private func build(by childName: String) -> RAModule? {
+        guard let builder else {
+            log(
+                "Cannot build the `\(childName)` child module because this module doesn't have a builder.",
+                category: RACategory.childManagement,
+                level: .error
+            )
+            return nil
+        }
+        let childModule = builder.build(by: childName)
+        return (childModule is RAEmpty) ? nil : childModule
     }
     
     
-    // MARK: - Connecting and Disconnecting Components
+    // MARK: - Assembly and Disassembly
     
     /// Assembles this module by connecting its components to each other and to itself.
     private func assemble() -> Void {
@@ -102,6 +103,47 @@ open class RAModule: RAComponent {
         interactor._module = nil
         router._module = nil
         view?._module = nil
+    }
+    
+    
+    // MARK: - Lifecycle
+    
+    /// Called when a parent module loads this module into its memory.
+    internal final func load() -> Void {
+        defer { log("Loaded into memory", category: RACategory.moduleLifecycle) }
+        assemble()
+        isLoaded = true
+    }
+    
+    /// Called when a parent module starts this module.
+    internal final func start() -> Void {
+        defer { log("Started working", category: RACategory.moduleLifecycle) }
+        state = .active
+    }
+    
+    /// Called when this module starts a child module.
+    internal final func suspend() -> Void {
+        defer { log("Suspended working", category: RACategory.moduleLifecycle) }
+        state = .suspended
+    }
+    
+    /// Called when a child module stops its work.
+    internal final func resume() -> Void {
+        defer { log("Resumed working", category: RACategory.moduleLifecycle) }
+        state = .active
+    }
+    
+    /// Called when this module should stop its work for some reason.
+    internal final func stop() -> Void {
+        defer { log("Stopped working", category: RACategory.moduleLifecycle) }
+        state = .inactive
+    }
+    
+    /// Called when a parent module unloads this module from its memory.
+    internal final func unload() -> Void {
+        defer { log("Unloaded from memory", category: RACategory.moduleLifecycle) }
+        disassemble()
+        isLoaded = false
     }
     
     
@@ -130,7 +172,7 @@ open class RAModule: RAComponent {
     /// If this module don't have child modules, then pass `nil` (default).
     ///
     public init(name: String, interactor: RAAbstractInteractor, router: RARouter, view: RAAbstractView? = nil, builder: RABuilder? = nil) {
-        defer { log("Created", category: "ModuleLifecycle") }
+        defer { log("Created", category: RACategory.moduleLifecycle) }
         self.name = name
         self.interactor = interactor
         self.router = router
@@ -140,7 +182,7 @@ open class RAModule: RAComponent {
     }
     
     deinit {
-        log("Deleted", category: "ModuleLifecycle")
+        log("Deleted", category: RACategory.moduleLifecycle)
     }
     
 }
