@@ -59,6 +59,38 @@ open class RAModule: RAComponent {
     
     // MARK: - Child Management
     
+    /// Loads a specific module into memory if possible.
+    private func load(_ child: RAModule) -> Bool {
+        let dependency = interactor.dependency(for: child.name)
+        let childCanLoad = child.delegate.moduleShouldLoad(byInjecting: dependency)
+        guard childCanLoad else {
+            log(
+                "Cannot load the `\(child.name)` child module because it didn't get the necessary dependency",
+                category: RACategory.childManagement,
+                level: .error
+            )
+            return false
+        }
+        attach(child)
+        child.load()
+        child.delegate.moduleDidLoad()
+        return true
+    }
+    
+    /// Unloads all children from memory.
+    private func unloadAllChildren() -> Void {
+        for child in children.values {
+            unload(child)
+        }
+    }
+    
+    /// Unloads a specific module from memory.
+    private func unload(_ child: RAModule) -> Void {
+        child.delegate.moduleWillUnload()
+        child.unload()
+        detach(child)
+    }
+    
     /// Adds a specific module to children by its name.
     private func attach(_ child: RAModule) -> Void {
         children[child.name] = child
@@ -145,6 +177,7 @@ open class RAModule: RAComponent {
     /// Called when a parent module unloads this module from its memory.
     internal final func unload() -> Void {
         defer { log("Unloaded from memory", category: RACategory.moduleLifecycle) }
+        unloadAllChildren()
         disassemble()
         isLoaded = false
     }
@@ -192,6 +225,7 @@ open class RAModule: RAComponent {
 }
 
 
+/// The methods adopted by the object you use to manage the lifecycle of a specific module.
 public protocol RAModuleLifecycleDelegate where Self: RAObject {
     
     /// Called when the module is about to be loaded into memory.
