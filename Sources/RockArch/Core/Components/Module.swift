@@ -59,16 +59,60 @@ open class RAModule: RAComponent {
     
     // MARK: - Child Management
     
+    
+    // MARK: Loading and Unloading Children
+    
+    /// Preloads a specific child into memory if possible.
+    @discardableResult
+    public final func preload(by childName: String) -> Bool {
+        guard isLoaded else {
+            log("Cannot preload the `\(childName)` child module because this module wasn't loaded into memory",
+                category: RACategory.childManagement,
+                level: .error)
+            return false
+        }
+        guard children[childName].isNil else {
+            log("Cannot preload the `\(childName)` child module because it's already loaded into memory",
+                category: RACategory.childManagement,
+                level: .error)
+            return false
+        }
+        guard let builtChild = build(by: childName) else {
+            log("Cannot preload the `\(childName)` child module because it cannot be built",
+                category: RACategory.childManagement,
+                level: .error)
+            return false
+        }
+        return load(builtChild)
+    }
+    
+    /// Unloads a specific child from memory if possible.
+    @discardableResult
+    public final func unload(by childName: String) -> Bool {
+        guard let child = children[childName] else {
+            log("Cannot unload the `\(childName)` child module because there's no loaded module with this name",
+                category: RACategory.childManagement,
+                level: .error)
+            return false
+        }
+        guard child.isInactive else {
+            log("Cannot unload the `\(childName)` child module because it's active or suspended",
+                category: RACategory.childManagement,
+                level: .error)
+            return false
+        }
+        unload(child)
+        return true
+    }
+    
     /// Loads a specific module into memory if possible.
     private func load(_ child: RAModule) -> Bool {
         let dependency = interactor.dependency(for: child.name)
         let childCanLoad = child.delegate.moduleShouldLoad(byInjecting: dependency)
         guard childCanLoad else {
-            log(
-                "Cannot load the `\(child.name)` child module because it didn't get the necessary dependency",
+            log("Cannot load the `\(child.name)` child module because it didn't get the necessary dependency",
                 category: RACategory.childManagement,
-                level: .error
-            )
+                level: .error)
             return false
         }
         attach(child)
@@ -91,6 +135,9 @@ open class RAModule: RAComponent {
         detach(child)
     }
     
+    
+    // MARK: Attaching and Detaching Children
+    
     /// Adds a specific module to children by its name.
     private func attach(_ child: RAModule) -> Void {
         children[child.name] = child
@@ -103,14 +150,15 @@ open class RAModule: RAComponent {
         child.parent = nil
     }
     
+    
+    // MARK: Building Children
+    
     /// Builds a specific child module by its name if possible.
     private func build(by childName: String) -> RAModule? {
         guard let builder else {
-            log(
-                "Cannot build the `\(childName)` child module because this module doesn't have a builder.",
+            log("Cannot build the `\(childName)` child module because this module doesn't have a builder.",
                 category: RACategory.childManagement,
-                level: .error
-            )
+                level: .error)
             return nil
         }
         let childModule = builder.build(by: childName)
