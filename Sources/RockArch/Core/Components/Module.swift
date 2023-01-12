@@ -29,6 +29,9 @@ open class RAModule: RAComponent {
     /// A boolean value that indicates whether this module is loaded into the parent memory.
     public private(set) var isLoaded: Bool = false
     
+    /// A boolean value that indicates whether a parent module should keep this module loaded after its completion (when it becomes inactive).
+    public var shouldKeepLoadedIfCompleted = false
+    
     
     // MARK: Internal Properties
     
@@ -59,6 +62,91 @@ open class RAModule: RAComponent {
     
     // MARK: - Child Management
     
+    // MARK: Starting and Stoping Children
+    
+    /// Starts a specific child module if possible.
+    private func start(_ child: RAModule, shouldSuspendThisModule moduleSuspendsWork: Bool) -> Bool {
+        guard child.isLoaded else {
+            log("Cannot start the `\(child.name)` child module because it's not loaded into memory",
+                category: RACategory.childManagement,
+                level: .error)
+            return false
+        }
+        guard child.isInactive else {
+            log("Cannot start the `\(child.name)` child module because it's already started",
+                category: RACategory.childManagement,
+                level: .warning)
+            return false
+        }
+        let context = interactor.context(for: child.name)
+        let childCanStart = child.delegate.moduleShouldStart(within: context)
+        guard childCanStart else {
+            log("Cannot start the `\(child.name)` child module because it didn't get the necessary context",
+                category: RACategory.childManagement,
+                level: .error)
+            return false
+        }
+        if moduleSuspendsWork {
+            delegate.moduleWillSuspend()
+            suspend()
+        }
+        child.start()
+        child.delegate.moduleDidStart()
+        if moduleSuspendsWork {
+            delegate.moduleDidSuspend()
+        }
+        return true
+    }
+    
+    /// Stops a specific child module if possible.
+    @discardableResult
+    private func stop(_ child: RAModule, shouldResumeThisModule moduleResumesWork: Bool) -> Bool {
+        guard child.isLoaded else {
+            log("Cannot stop the `\(child.name)` child module because it's not loaded into memory",
+                category: RACategory.childManagement,
+                level: .error)
+            return false
+        }
+        guard child.isActive || child.isSuspended else {
+            log("Cannot stop the `\(child.name)` child module because it's already inactive",
+                category: RACategory.childManagement,
+                level: .warning)
+            return false
+        }
+        child.stopAllChildren()
+        receiveOutcome(from: child)
+        if moduleResumesWork {
+            delegate.moduleWillResume()
+        }
+        child.stop()
+        if moduleResumesWork {
+            resume()
+            delegate.moduleDidResume()
+        }
+        child.delegate.moduleDidStop()
+        if child.shouldKeepLoadedIfCompleted == false {
+            unload(child)
+        }
+        return true
+    }
+    
+    /// Stops all child modules without resuming this module, recursively.
+    internal final func stopAllChildren() -> Void {
+        for child in children.values {
+            // This calls the `stopAllChildren()` method of a child.
+            stop(child, shouldResumeThisModule: false)
+        }
+    }
+    
+    /// Receives an outcome from a specific child.
+    private func receiveOutcome(from child: RAModule) -> Void {
+        if let outcome = child.delegate.moduleShouldStop() {
+            log("Recieved an outcome from the `\(child.name)` child module",
+                category: RACategory.childManagement)
+            interactor.child(child.name, didPassOutcome: outcome)
+        }
+    }
+    
     
     // MARK: Loading and Unloading Children
     
@@ -66,7 +154,7 @@ open class RAModule: RAComponent {
     @discardableResult
     public final func preload(by childName: String) -> Bool {
         guard isLoaded else {
-            log("Cannot preload the `\(childName)` child module because this module wasn't loaded into memory",
+            log("Cannot preload the `\(childName)` child module because this module is not loaded into memory",
                 category: RACategory.childManagement,
                 level: .error)
             return false
@@ -74,7 +162,7 @@ open class RAModule: RAComponent {
         guard children[childName].isNil else {
             log("Cannot preload the `\(childName)` child module because it's already loaded into memory",
                 category: RACategory.childManagement,
-                level: .error)
+                level: .warning)
             return false
         }
         guard let builtChild = build(by: childName) else {
