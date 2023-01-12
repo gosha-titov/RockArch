@@ -62,9 +62,79 @@ open class RAModule: RAComponent {
     
     // MARK: - Child Management
     
+    /// Invokes a specific child module.
+    ///
+    /// This method transfers control to a specific child module, if possible.
+    /// That is, this module becomes suspended, and a child module becomes active.
+    ///
+    /// - Returns: `True` if control has been transferred to a child module; otherwise, `False`.
+    internal final func invoke(by childName: String) -> Bool {
+        guard isLoaded else {
+            log("Cannot invoke the `\(childName)` child module because this module is not loaded into memory",
+                category: RACategory.childManagement,
+                level: .error)
+            return false
+        }
+        guard isActive else {
+            log("Cannot invoke the `\(childName)` child module because this module is not active",
+                category: RACategory.childManagement,
+                level: .error)
+            return false
+        }
+        let child: RAModule
+        if let existingChild = children[childName] {
+            child = existingChild
+        } else {
+            guard let builtChild = build(by: childName) else {
+                log("Cannot invoke the `\(childName)` child module because it cannot be built",
+                    category: RACategory.childManagement,
+                    level: .error)
+                return false
+            }
+            guard load(builtChild) else {
+                log("Cannot invoke the `\(childName)` child module because it cannot be loaded into memory",
+                    category: RACategory.childManagement,
+                    level: .error)
+                return false
+            }
+            child = builtChild
+        }
+        return start(child, shouldSuspendThisModule: true)
+    }
+    
+    /// Revokes a specific child module.
+    ///
+    /// This method takes control away from a specific child module, if possible.
+    /// That is, this module becomes resumed, and a child module becomes suspended or inactive.
+    ///
+    /// - Returns: `True` if control has been taken away from a child module; otherwise, `False`.
+    internal final func revoke(by childName: String) -> Bool {
+        guard isLoaded else {
+            log("Cannot revoke the `\(childName)` child module because this module is not loaded into memory",
+                category: RACategory.childManagement,
+                level: .error)
+            return false
+        }
+        guard isSuspended else {
+            log("Cannot revoke the `\(childName)` child module because this module was not suspended",
+                category: RACategory.childManagement,
+                level: .error)
+            return false
+        }
+        guard let child = children[childName] else {
+            log("Cannot revoke the `\(childName)` child module because it doesn't exist",
+                category: RACategory.childManagement,
+                level: .error)
+            return false
+        }
+        return stop(child, shouldResumeThisModule: true)
+    }
+    
+    
     // MARK: Starting and Stoping Children
     
     /// Starts a specific child module if possible.
+    @discardableResult
     private func start(_ child: RAModule, shouldSuspendThisModule moduleSuspendsWork: Bool) -> Bool {
         guard child.isLoaded else {
             log("Cannot start the `\(child.name)` child module because it's not loaded into memory",
@@ -151,6 +221,7 @@ open class RAModule: RAComponent {
     // MARK: Loading and Unloading Children
     
     /// Preloads a specific child into memory if possible.
+    /// - Returns: `True` if the child module has been loaded into memory; otherwise, `False`.
     @discardableResult
     public final func preload(by childName: String) -> Bool {
         guard isLoaded else {
@@ -175,6 +246,7 @@ open class RAModule: RAComponent {
     }
     
     /// Unloads a specific child from memory if possible.
+    /// - Returns: `True` if the child module has been unloaded from memory; otherwise, `False`.
     @discardableResult
     public final func unload(by childName: String) -> Bool {
         guard let child = children[childName] else {
