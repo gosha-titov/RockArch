@@ -79,7 +79,9 @@ open class RABuilder: RAComponent, RAModuleBelongable {
     ///
     /// You should return a result of calling the `super` method when you cannot build a module.
     open func build(by name: String) -> RAModule {
-        log("Cannot build a module by name `\(name)`", category: "ChildManagement", level: .error)
+        log("Cannot build a module by name `\(name)`",
+            category: .moduleManagement,
+            level: .error)
         return RAEmptyModule()
     }
     

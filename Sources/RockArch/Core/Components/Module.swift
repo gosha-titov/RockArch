@@ -71,13 +71,13 @@ open class RAModule: RAComponent {
     internal final func invoke(by childName: String) -> Bool {
         guard isLoaded else {
             log("Cannot invoke the `\(childName)` child module because this module is not loaded into memory",
-                category: RACategory.childManagement,
+                category: .moduleManagement,
                 level: .error)
             return false
         }
         guard isActive else {
             log("Cannot invoke the `\(childName)` child module because this module is not active",
-                category: RACategory.childManagement,
+                category: .moduleManagement,
                 level: .error)
             return false
         }
@@ -87,13 +87,13 @@ open class RAModule: RAComponent {
         } else {
             guard let builtChild = build(by: childName) else {
                 log("Cannot invoke the `\(childName)` child module because it cannot be built",
-                    category: RACategory.childManagement,
+                    category: .moduleManagement,
                     level: .error)
                 return false
             }
             guard load(builtChild) else {
                 log("Cannot invoke the `\(childName)` child module because it cannot be loaded into memory",
-                    category: RACategory.childManagement,
+                    category: .moduleManagement,
                     level: .error)
                 return false
             }
@@ -111,19 +111,19 @@ open class RAModule: RAComponent {
     internal final func revoke(by childName: String) -> Bool {
         guard isLoaded else {
             log("Cannot revoke the `\(childName)` child module because this module is not loaded into memory",
-                category: RACategory.childManagement,
+                category: .moduleManagement,
                 level: .error)
             return false
         }
         guard isSuspended else {
             log("Cannot revoke the `\(childName)` child module because this module was not suspended",
-                category: RACategory.childManagement,
+                category: .moduleManagement,
                 level: .error)
             return false
         }
         guard let child = children[childName] else {
             log("Cannot revoke the `\(childName)` child module because it doesn't exist",
-                category: RACategory.childManagement,
+                category: .moduleManagement,
                 level: .error)
             return false
         }
@@ -138,13 +138,13 @@ open class RAModule: RAComponent {
     private func start(_ child: RAModule, shouldSuspendThisModule moduleSuspendsWork: Bool) -> Bool {
         guard child.isLoaded else {
             log("Cannot start the `\(child.name)` child module because it's not loaded into memory",
-                category: RACategory.childManagement,
+                category: .moduleManagement,
                 level: .error)
             return false
         }
         guard child.isInactive else {
             log("Cannot start the `\(child.name)` child module because it's already started",
-                category: RACategory.childManagement,
+                category: .moduleManagement,
                 level: .warning)
             return false
         }
@@ -152,7 +152,7 @@ open class RAModule: RAComponent {
         let childCanStart = child.delegate.moduleShouldStart(within: context)
         guard childCanStart else {
             log("Cannot start the `\(child.name)` child module because it didn't get the necessary context",
-                category: RACategory.childManagement,
+                category: .moduleManagement,
                 level: .error)
             return false
         }
@@ -173,13 +173,13 @@ open class RAModule: RAComponent {
     private func stop(_ child: RAModule, shouldResumeThisModule moduleResumesWork: Bool) -> Bool {
         guard child.isLoaded else {
             log("Cannot stop the `\(child.name)` child module because it's not loaded into memory",
-                category: RACategory.childManagement,
+                category: .moduleManagement,
                 level: .error)
             return false
         }
         guard child.isActive || child.isSuspended else {
             log("Cannot stop the `\(child.name)` child module because it's already inactive",
-                category: RACategory.childManagement,
+                category: .moduleManagement,
                 level: .warning)
             return false
         }
@@ -212,7 +212,7 @@ open class RAModule: RAComponent {
     private func receiveOutcome(from child: RAModule) -> Void {
         if let outcome = child.delegate.moduleShouldStop() {
             log("Recieved an outcome from the `\(child.name)` child module",
-                category: RACategory.childManagement)
+                category: .moduleManagement)
             interactor.child(child.name, didPassOutcome: outcome)
         }
     }
@@ -226,19 +226,19 @@ open class RAModule: RAComponent {
     public final func preload(by childName: String) -> Bool {
         guard isLoaded else {
             log("Cannot preload the `\(childName)` child module because this module is not loaded into memory",
-                category: RACategory.childManagement,
+                category: .moduleManagement,
                 level: .error)
             return false
         }
         guard children[childName].isNil else {
             log("Cannot preload the `\(childName)` child module because it's already loaded into memory",
-                category: RACategory.childManagement,
+                category: .moduleManagement,
                 level: .warning)
             return false
         }
         guard let builtChild = build(by: childName) else {
             log("Cannot preload the `\(childName)` child module because it cannot be built",
-                category: RACategory.childManagement,
+                category: .moduleManagement,
                 level: .error)
             return false
         }
@@ -251,13 +251,13 @@ open class RAModule: RAComponent {
     public final func unload(by childName: String) -> Bool {
         guard let child = children[childName] else {
             log("Cannot unload the `\(childName)` child module because there's no loaded module with this name",
-                category: RACategory.childManagement,
+                category: .moduleManagement,
                 level: .error)
             return false
         }
         guard child.isInactive else {
             log("Cannot unload the `\(childName)` child module because it's active or suspended",
-                category: RACategory.childManagement,
+                category: .moduleManagement,
                 level: .error)
             return false
         }
@@ -271,7 +271,7 @@ open class RAModule: RAComponent {
         let childCanLoad = child.delegate.moduleShouldLoad(byInjecting: dependency)
         guard childCanLoad else {
             log("Cannot load the `\(child.name)` child module because it didn't get the necessary dependency",
-                category: RACategory.childManagement,
+                category: .moduleManagement,
                 level: .error)
             return false
         }
@@ -317,7 +317,7 @@ open class RAModule: RAComponent {
     private func build(by childName: String) -> RAModule? {
         guard let builder else {
             log("Cannot build the `\(childName)` child module because this module doesn't have a builder.",
-                category: RACategory.childManagement,
+                category: .moduleManagement,
                 level: .error)
             return nil
         }
@@ -353,38 +353,38 @@ open class RAModule: RAComponent {
     
     /// Called when a parent module loads this module into its memory.
     internal final func load() -> Void {
-        defer { log("Loaded into memory", category: RACategory.moduleLifecycle) }
+        defer { log("Loaded into memory", category: .moduleLifecycle) }
         assemble()
         isLoaded = true
     }
     
     /// Called when a parent module starts this module.
     internal final func start() -> Void {
-        defer { log("Started working", category: RACategory.moduleLifecycle) }
+        defer { log("Started working", category: .moduleLifecycle) }
         state = .active
     }
     
     /// Called when this module starts a child module.
     internal final func suspend() -> Void {
-        defer { log("Suspended working", category: RACategory.moduleLifecycle) }
+        defer { log("Suspended working", category: .moduleLifecycle) }
         state = .suspended
     }
     
     /// Called when a child module stops its work.
     internal final func resume() -> Void {
-        defer { log("Resumed working", category: RACategory.moduleLifecycle) }
+        defer { log("Resumed working", category: .moduleLifecycle) }
         state = .active
     }
     
     /// Called when this module should stop its work for some reason.
     internal final func stop() -> Void {
-        defer { log("Stopped working", category: RACategory.moduleLifecycle) }
+        defer { log("Stopped working", category: .moduleLifecycle) }
         state = .inactive
     }
     
     /// Called when a parent module unloads this module from its memory.
     internal final func unload() -> Void {
-        defer { log("Unloaded from memory", category: RACategory.moduleLifecycle) }
+        defer { log("Unloaded from memory", category: .moduleLifecycle) }
         unloadAllChildren()
         disassemble()
         isLoaded = false
@@ -416,7 +416,7 @@ open class RAModule: RAComponent {
     /// If this module don't have child modules, then pass `nil` (default).
     ///
     public init(name: String, interactor: RAAbstractInteractor, router: RARouter, view: RAAbstractView? = nil, builder: RABuilder? = nil) {
-        defer { log("Created", category: RACategory.moduleLifecycle) }
+        defer { log("Created", category: .moduleLifecycle) }
         self.name = name
         self.interactor = interactor
         self.router = router
@@ -427,7 +427,7 @@ open class RAModule: RAComponent {
     }
     
     deinit {
-        log("Deleted", category: RACategory.moduleLifecycle)
+        log("Deleted", category: .moduleLifecycle)
     }
     
 }

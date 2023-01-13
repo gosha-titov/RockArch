@@ -42,6 +42,33 @@ open class RABlackBox {
         current.log(message, author: author, category: category, level: .trace, fileID: fileID, function: function, line: line)
     }
     
+    /// Passes this message to the loggers of the current black box.
+    ///
+    /// You usually don't use this log method directly:
+    ///
+    ///     RABlackBox.log(
+    ///         "No internet connection",
+    ///         author: "Weather-Service",
+    ///         category: .network,
+    ///         level: .error
+    ///     )
+    ///
+    /// Instead, you call the static method corresponding to a log level of your message:
+    ///
+    ///     RABlackBox.error(
+    ///         "No internet connection",
+    ///         author: "Weather-Service",
+    ///         category: .network
+    ///     )
+    ///
+    /// - Parameter message:  A string to log.
+    /// - Parameter author:   A string that describes an author of this message.
+    /// - Parameter category: A category of this message.
+    /// - Parameter level:    A level associated how important this message is.
+    public static func log(_ message: String, author: String, category: RALogCategory, level: RALogLevel, fileID: String = #fileID, function: String = #function, line: Int = #line) -> Void {
+        current.log(message, author: author, category: category.rawValue, level: .trace, fileID: fileID, function: function, line: line)
+    }
+    
     
     // MARK: - Public Properties
     
@@ -84,23 +111,52 @@ extension RABlackBox {
         log(message, author: author, category: category, level: .trace, fileID: fileID, function: function, line: line)
     }
     
+    public static func trace(_ message: String, author: String, category: RALogCategory, fileID: String = #fileID, function: String = #function, line: Int = #line) -> Void {
+        log(message, author: author, category: category, level: .trace, fileID: fileID, function: function, line: line)
+    }
+    
+    
     public static func debug(_ message: String, author: String, category: String, fileID: String = #fileID, function: String = #function, line: Int = #line) -> Void {
         log(message, author: author, category: category, level: .debug, fileID: fileID, function: function, line: line)
     }
+    
+    public static func debug(_ message: String, author: String, category: RALogCategory, fileID: String = #fileID, function: String = #function, line: Int = #line) -> Void {
+        log(message, author: author, category: category, level: .debug, fileID: fileID, function: function, line: line)
+    }
+    
     
     public static func info(_ message: String, author: String, category: String, fileID: String = #fileID, function: String = #function, line: Int = #line) -> Void {
         log(message, author: author, category: category, level: .info, fileID: fileID, function: function, line: line)
     }
     
+    public static func info(_ message: String, author: String, category: RALogCategory, fileID: String = #fileID, function: String = #function, line: Int = #line) -> Void {
+        log(message, author: author, category: category, level: .info, fileID: fileID, function: function, line: line)
+    }
+    
+    
     public static func warning(_ message: String, author: String, category: String, fileID: String = #fileID, function: String = #function, line: Int = #line) -> Void {
         log(message, author: author, category: category, level: .warning, fileID: fileID, function: function, line: line)
     }
+    
+    public static func warning(_ message: String, author: String, category: RALogCategory, fileID: String = #fileID, function: String = #function, line: Int = #line) -> Void {
+        log(message, author: author, category: category, level: .warning, fileID: fileID, function: function, line: line)
+    }
+    
     
     public static func error(_ message: String, author: String, category: String, fileID: String = #fileID, function: String = #function, line: Int = #line) -> Void {
         log(message, author: author, category: category, level: .error, fileID: fileID, function: function, line: line)
     }
     
+    public static func error(_ message: String, author: String, category: RALogCategory, fileID: String = #fileID, function: String = #function, line: Int = #line) -> Void {
+        log(message, author: author, category: category, level: .error, fileID: fileID, function: function, line: line)
+    }
+    
+    
     public static func fatal(_ message: String, author: String, category: String, fileID: String = #fileID, function: String = #function, line: Int = #line) -> Void {
+        log(message, author: author, category: category, level: .fatal, fileID: fileID, function: function, line: line)
+    }
+    
+    public static func fatal(_ message: String, author: String, category: RALogCategory, fileID: String = #fileID, function: String = #function, line: Int = #line) -> Void {
         log(message, author: author, category: category, level: .fatal, fileID: fileID, function: function, line: line)
     }
     
