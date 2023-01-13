@@ -60,11 +60,31 @@ public protocol RASimplifiedLoggable where Self: RAObject {
     /// - Parameter level:    A level with which this message will be logged.
     func log(_ message: String, category: String, level: RALogLevel, fileID: String, function: String, line: Int) -> Void
     
+    /// Logs a message in a simplified way by specifying a sender as this object.
+    ///
+    /// Call this method when you need to log a message on behalf of this object.
+    /// For example, if the black box uses a console logger:
+    ///
+    ///     log("No internet connection", category: .network, level: .error)
+    ///
+    /// will print:
+    ///
+    ///     "[Network] 7:26:33 PM <error> Main-Interactor: No internet connection."
+    ///
+    /// - Parameter message:  A string to log.
+    /// - Parameter category: A category of this message.
+    /// - Parameter level:    A level with which this message will be logged.
+    func log(_ message: String, category: RALogCategory, level: RALogLevel, fileID: String, function: String, line: Int) -> Void
+    
 }
 
 public extension RASimplifiedLoggable {
     
     func log(_ message: String, category: String, level: RALogLevel = .debug, fileID: String = #fileID, function: String = #function, line: Int = #line) -> Void {
+        RABlackBox.log(message, author: description, category: category, level: level, fileID: fileID, function: function, line: line)
+    }
+    
+    func log(_ message: String, category: RALogCategory, level: RALogLevel = .debug, fileID: String = #fileID, function: String = #function, line: Int = #line) -> Void {
         RABlackBox.log(message, author: description, category: category, level: level, fileID: fileID, function: function, line: line)
     }
     
@@ -206,5 +226,65 @@ public enum RALogLevel: String, CaseIterable, Comparable {
     public static func < (lhs: RALogLevel, rhs: RALogLevel) -> Bool {
         return lhs.integer < rhs.integer
     }
+    
+}
+
+
+/// A category that you can use for logging a message.
+///
+/// The enumeration provides common categories, which simplifies logging.
+/// The black box also works with this:
+///
+///     RABlackBox.error(
+///         "No internet connection",
+///         author: "Weather-Service",
+///         category: .network
+///     )
+///
+/// It has the same result as this one:
+///
+///     RABlackBox.error(
+///         "No internet connection",
+///         author: "Weather-Service",
+///         category: "Network"
+///     )
+///
+public enum RALogCategory: String {
+    
+    /// The category that has the "ModuleCommunication" raw value.
+    case moduleCommunication = "ModuleCommunication"
+    
+    /// The category that has the "ModuleManagement" raw value.
+    case moduleManagement = "ModuleManagement"
+    
+    /// The category that has the "ModuleLifecycle" raw value.
+    case moduleLifecycle = "ModuleLifecycle"
+    
+    /// The category that has the "Authentication" raw value.
+    case authentication = "Authentication"
+    
+    /// The category that has the "Application" raw value.
+    case application = "Application"
+    
+    /// The category that has the "Default" raw value.
+    case `default` = "Default"
+    
+    /// The category that has the "Database" raw value.
+    case database = "Database"
+    
+    /// The category that has the "Network" raw value.
+    case network = "Network"
+    
+    /// The category that has the "Service" raw value.
+    case service = "Service"
+    
+    /// The category that has the "Memory" raw value.
+    case memory = "Memory"
+    
+    /// The category that has the "User" raw value.
+    case user = "User"
+    
+    /// The category that has the "None" raw value.
+    case none = "None"
     
 }
