@@ -50,8 +50,11 @@ open class RAModule: RAComponent {
     /// The internal builder of this module, or `nil`.
     internal let builder: RABuilder?
     
+    /// The object that provides the data for this module.
+    public var dataSource: RAModuleDataSource
+    
     /// The object that acts as the delegate of this module.
-    internal let delegate: RAModuleLifecycleDelegate
+    public var delegate: RAModuleLifecycleDelegate
     
     
     // MARK: Private Properties
@@ -148,7 +151,7 @@ open class RAModule: RAComponent {
                 level: .warning)
             return false
         }
-        let context = interactor.context(for: child.name)
+        let context = dataSource.context(for: child.name)
         let childCanStart = child.delegate.moduleShouldStart(within: context)
         guard childCanStart else {
             log("Cannot start the `\(child.name)` child module because it didn't get the necessary context",
@@ -267,7 +270,7 @@ open class RAModule: RAComponent {
     
     /// Loads a specific module into memory if possible.
     private func load(_ child: RAModule) -> Bool {
-        let dependency = interactor.dependency(for: child.name)
+        let dependency = dataSource.dependency(for: child.name)
         let childCanLoad = child.delegate.moduleShouldLoad(byInjecting: dependency)
         guard childCanLoad else {
             log("Cannot load the `\(child.name)` child module because it didn't get the necessary dependency",
@@ -422,6 +425,7 @@ open class RAModule: RAComponent {
         self.router = router
         self.view = view
         self.builder = builder
+        dataSource = interactor
         delegate = interactor
         RALeakDetector.register(self)
     }
@@ -433,40 +437,52 @@ open class RAModule: RAComponent {
 }
 
 
+/// The methods adopted by the object you use to provide data for a specifc module.
+public protocol RAModuleDataSource where Self: RAObject {
+    
+    /// Provides a dependency for a specific child when it loads into memory.
+    func dependency(for childName: String) -> RADependency?
+    
+    /// Provides a context for a specific child when it starts.
+    func context(for childName: String) -> RAContext?
+    
+}
+
+
 /// The methods adopted by the object you use to manage the lifecycle of a specific module.
 public protocol RAModuleLifecycleDelegate where Self: RAObject {
     
-    /// Called when the module is about to be loaded into memory.
+    /// Asks the delegate with what dependency it should be loaded.
     func moduleShouldLoad(byInjecting dependency: RADependency?) -> Bool
     
-    /// Called after the module is loaded into the parent memory.
+    /// Notifies the delegate that the module is loaded into the parent memory.
     func moduleDidLoad() -> Void
     
-    /// Called when the module is about to be started.
+    /// Asks the delegate with what context it should be started.
     func moduleShouldStart(within context: RAContext?) -> Bool
     
-    /// Called after the module is started.
+    /// Notifies the delegate that the module is started.
     func moduleDidStart() -> Void
     
-    /// Called when the module is about to be suspended.
+    /// Notifies the delegate that the module is about to be suspended.
     func moduleWillSuspend() -> Void
     
-    /// Called after the module is suspended.
+    /// Notifies the delegate that the module is suspended.
     func moduleDidSuspend() -> Void
     
-    /// Called when the module is about to be resumed.
+    /// Notifies the delegate that the module is about to be resumed.
     func moduleWillResume() -> Void
     
-    /// Called after the module is resumed.
+    /// Notifies the delegate that the module is resumed.
     func moduleDidResume() -> Void
     
-    /// Called when the module should be stopped.
+    /// Asks the delegate what should be the outcome of the module's work.
     func moduleShouldStop() -> RAOutcome?
     
-    /// Called after the module is stopped.
+    /// Notifies the delegate that the module is stopped.
     func moduleDidStop() -> Void
     
-    /// Called when the module is about to be unloaded from parent memory.
+    /// Notifies the delegate that the module is about to be unloaded from parent memory.
     func moduleWillUnload() -> Void
     
 }
