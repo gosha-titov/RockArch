@@ -51,16 +51,88 @@ open class RAModule: RAComponent {
     internal let builder: RABuilder?
     
     /// The object that provides the data for this module.
-    public var dataSource: RAModuleDataSource
+    internal let dataSource: RAModuleDataSource
     
     /// The object that acts as the delegate of this module.
-    public var delegate: RAModuleLifecycleDelegate
+    internal let delegate: RAModuleLifecycleDelegate
     
     
     // MARK: Private Properties
     
-    /// A dictionary that stores created and loaded child modules.
+    /// A dictionary that stores created (and loaded) child modules.
     private var children = [String: RAModule]()
+    
+    
+    // MARK: - Child Communication
+    
+    /// Sends a signal to a specific receiver if possible.
+    internal final func send(_ signal: RASignal, to receiver: RARelative) -> Bool {
+        let message: String
+        let signalLabel = signal.label.isEmpty ? "unnamed" : signal.label
+        let receivingModule: RAModule
+        let sender: RARelative
+        switch receiver {
+        case .child(let childName):
+            guard let child = children[childName] else {
+                log("Cannot send the `\(signalLabel)` signal to the non-existent `\(childName)` child module",
+                    category: .moduleCommunication,
+                    level: .error)
+                return false
+            }
+            message = "Sended the `\(signalLabel)` signal to the \(childName) child module"
+            receivingModule = child
+            sender = .parent
+        case .parent:
+            guard let parent else {
+                log("Cannot send the `\(signalLabel)` signal to the non-existent parent module",
+                    category: .moduleCommunication,
+                    level: .error)
+                return false
+            }
+            message = "Sended the `\(signalLabel)` signal to the `\(parent.name)` parent module"
+            receivingModule = parent
+            sender = .child(name)
+        }
+        log(message, category: .moduleCommunication, level: .info)
+        return receivingModule.receive(signal, from: sender)
+    }
+    
+    /// Receives a signal from a specific sender if possible.
+    fileprivate final func receive(_ signal: RASignal, from sender: RARelative) -> Bool {
+        let message: String
+        let signalLabel = signal.label.isEmpty ? "unnamed" : signal.label
+        switch sender {
+        case .child(let childName):
+            guard children.hasKey(childName) else {
+                log("Cannot receive the `\(signalLabel)` signal from the non-existent `\(childName)` child module",
+                    category: .moduleCommunication,
+                    level: .error)
+                return false
+            }
+            interactor.child(childName, didPassValue: signal.value, withLabel: signal.label)
+            message = "Received the `\(signalLabel)` signal from the `\(childName)` child module"
+        case .parent:
+            guard let parent else {
+                log("Cannot receive the `\(signalLabel)` signal from the non-existent parent module",
+                    category: .moduleCommunication,
+                    level: .error)
+                return false
+            }
+            interactor.parent(didPassValue: signal.value, withLabel: signal.label)
+            message = "Received the `\(signalLabel)` signal from the `\(parent.name)` parent module"
+        }
+        log(message, category: .moduleCommunication, level: .info)
+        return true
+    }
+    
+    /// Receives an outcome from a specific child.
+    private func receiveOutcome(from child: RAModule) -> Void {
+        if let outcome = child.delegate.moduleShouldStop() {
+            log("Recieved an outcome from the `\(child.name)` child module",
+                category: .moduleCommunication)
+            interactor.child(child.name, didPassOutcome: outcome)
+        }
+    }
     
     
     // MARK: - Child Management
@@ -208,15 +280,6 @@ open class RAModule: RAComponent {
         for child in children.values {
             // This calls the `stopAllChildren()` method of a child.
             stop(child, shouldResumeThisModule: false)
-        }
-    }
-    
-    /// Receives an outcome from a specific child.
-    private func receiveOutcome(from child: RAModule) -> Void {
-        if let outcome = child.delegate.moduleShouldStop() {
-            log("Recieved an outcome from the `\(child.name)` child module",
-                category: .moduleManagement)
-            interactor.child(child.name, didPassOutcome: outcome)
         }
     }
     
@@ -476,7 +539,7 @@ public protocol RAModuleLifecycleDelegate where Self: RAObject {
     /// Notifies the delegate that the module is resumed.
     func moduleDidResume() -> Void
     
-    /// Asks the delegate what should be the outcome of the module's work.
+    /// Asks the delegate if there will be any outcome when the module stops its work.
     func moduleShouldStop() -> RAOutcome?
     
     /// Notifies the delegate that the module is stopped.
