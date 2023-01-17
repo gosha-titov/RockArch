@@ -1,14 +1,15 @@
 import Foundation
+import os
 
-/// A default logger that prints messages to the console.
+/// The default logger that prints messages to the console.
 ///
 /// You don't interact with this logger directly. You use it as one of the parameters for the black box.
-/// The console black box uses this logger by default.
+/// The default black box uses this logger.
 ///
 /// The console logger prints incoming messages in the following way:
 ///
-///     "[Network] 17:46:52 PM <error> Weather-Service: No internet connection."
-///      category   timestamp   level      author                text
+///     "[Network] 8:39:52 PM <error> Weather-Service: No internet connection."
+///      category  timestamp   level      author                text
 ///
 public final class RAConsoleLogger: RALogger {
     
@@ -26,6 +27,35 @@ public final class RAConsoleLogger: RALogger {
         let level = message.level.rawValue
         let text = message.text
         print("[\(category)] \(time) <\(level)> \(author): \(text).")
+    }
+    
+}
+
+
+/// The os logger that sends messages to the logging system.
+///
+/// You don't interact with this logger directly. You use it as one of the parameters for the black box.
+/// The default black box uses this logger.
+///
+/// The os logger logs incoming messages in the following way:
+///
+///     """
+///     Category  |  Time                  |  Type  |  Subsystem        |  Message
+///     ––––––––––+––––––––––––––––––––––––+––––––––+–––––––––––––––––––+––––––––––––––––––––––––
+///     Network      20:39:52.257992+0300      🟡      Weather-Service     No internet connection
+///     """
+///
+public final class RAOSLogger: RALogger {
+    
+    /// A string associated with the name of this logger
+    public let name = "OS"
+    
+    /// Logs a specific message.
+    public final func log(_ message: RALogMessage) -> Void {
+        let log = OSLog(subsystem: message.author, category: message.category)
+        let logType = message.level.toOSLogType
+        let message = message.text
+        os_log(logType, log: log, "%{public}@", message)
     }
     
 }
@@ -223,6 +253,18 @@ public enum RALogLevel: String, CaseIterable, Comparable {
         }
     }
     
+    /// An OSLogType value converted from this log level.
+    public var toOSLogType: OSLogType {
+        switch self {
+        case .trace:   return OSLogType.debug
+        case .debug:   return OSLogType.default
+        case .info:    return OSLogType.info
+        case .warning: return OSLogType.error
+        case .error:   return OSLogType.error
+        case .fatal:   return OSLogType.fault
+        }
+    }
+    
     public static func < (lhs: RALogLevel, rhs: RALogLevel) -> Bool {
         return lhs.integer < rhs.integer
     }
@@ -277,6 +319,9 @@ public enum RALogCategory: String {
     
     /// The category that has the "Service" raw value.
     case service = "Service"
+    
+    /// The category that has the "Server" raw value.
+    case server = "Server"
     
     /// The category that has the "Memory" raw value.
     case memory = "Memory"
