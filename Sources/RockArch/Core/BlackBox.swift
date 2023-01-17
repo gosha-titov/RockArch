@@ -6,13 +6,14 @@ open class RABlackBox {
     // MARK: - Static
     
     /// The black box that is currently in use.
-    public static var current: RABlackBox = .console
+    public static var current: RABlackBox = .default
     
-    /// The black box that uses a default console logger.
-    public static let console: RABlackBox = {
-        let logger = RAConsoleLogger()
-        let queue = DispatchQueue(label: "blackbox-console", qos: .background)
-        return RABlackBox(loggers: [logger], queue: queue)
+    /// The black box that uses os and console loggers.
+    public static let `default`: RABlackBox = {
+        let consoleLogger = RAConsoleLogger()
+        let osLogger = RAOSLogger()
+        let queue = DispatchQueue(label: "blackbox-default", qos: .background)
+        return RABlackBox(loggers: [consoleLogger, osLogger], queue: queue)
     }()
     
     /// Passes this message to the loggers of the current black box.
