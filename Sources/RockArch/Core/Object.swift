@@ -1,4 +1,4 @@
-/// An object that weakly references a specific object.
+/// The object that weakly references a specific object.
 ///
 /// Weak objects are mainly used in collections that should not strongly reference objects.
 open class RAWeakObject: RAObject {
@@ -18,6 +18,20 @@ open class RAWeakObject: RAObject {
         name = reference.name
         type = reference.type
     }
+    
+}
+
+
+/// The object that is ignored by others.
+///
+/// Empty objects are mainly used as an empty result of a function.
+internal final class RAEmptyObject: RAObject, RAEmpty {
+    
+    /// A string associated with the name of this empty object.
+    internal let name = "Empty"
+    
+    /// A textual representation of the type of this empty object.
+    internal let type = "Object"
     
 }
 
