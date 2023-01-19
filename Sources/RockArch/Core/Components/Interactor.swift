@@ -41,17 +41,37 @@ open class RAAbstractInteractor: RAComponent, RAModuleLifecycleDelegate, RAModul
     /// You don't need to call the `super` method.
     open func child(_ child: String, didPassOutcome outcome: RAOutcome) -> Void {}
     
-    /// Called when a specific child interactor passes some named data.
+    /// Called when a specific child interactor passes some named value.
     ///
     /// Override this method to process the passed data.
     /// You don't need to call the `super` method.
     open func child(_ child: String, didPassValue value: Any, withLabel label: String) -> Void {}
     
-    /// Called when a parent interactor passes some named data.
+    /// Called when a parent interactor passes some named value.
     ///
     /// Override this method to process the passed data.
     /// You don't need to call the `super` method.
     open func parent(didPassValue value: Any, withLabel label: String) -> Void {}
+    
+    /// Passes some named value to a specific related interactor.
+    ///
+    /// You can pass any named value to a parent/child interactor as in the following example:
+    ///
+    ///     pass(value: chosenColor, withLabel: "chosen_color", to: .parent)
+    ///
+    /// - Returns: `True` if the named value has been passed and a specific related interactor has received it; otherwise, `false`.
+    @discardableResult
+    public final func pass(value: Any, withLabel label: String, to receiver: RARelative) -> Bool {
+        guard let module = _module else {
+            let labelOrEmpty = label.isEmpty ? "" : " `\(label)`"
+            log("Couldn't pass the\(labelOrEmpty) value to the \(receiver)",
+                category: .moduleCommunication,
+                level: .error)
+            return false
+        }
+        let signal = RASignal(label: label, value: value)
+        return module.send(signal, to: receiver)
+    }
     
     
     // MARK: - Child Data Source
