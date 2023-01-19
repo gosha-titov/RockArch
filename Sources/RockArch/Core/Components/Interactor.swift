@@ -64,13 +64,72 @@ open class RAAbstractInteractor: RAComponent, RAModuleLifecycleDelegate, RAModul
     public final func pass(value: Any, withLabel label: String, to receiver: RARelative) -> Bool {
         guard let module = _module else {
             let labelOrEmpty = label.isEmpty ? "" : " `\(label)`"
-            log("Couldn't pass the\(labelOrEmpty) value to the \(receiver)",
+            log("Couldn't pass the\(labelOrEmpty) value to the \(receiver) because this interactor doesn't belong to the module",
                 category: .moduleCommunication,
                 level: .error)
             return false
         }
         let signal = RASignal(label: label, value: value)
         return module.send(signal, to: receiver)
+    }
+    
+    
+    // MARK: - Related Casting
+    
+    /// Returns an instance of a parent interactor casted to the given interface.
+    ///
+    /// You usually use this method when it's not enough for you to simply pass/receive some data to/from a parent interactor,
+    /// so you create an individual communication interface to the parent interactor.
+    /// Then you define a computed property as in the example below:
+    ///
+    ///     var parent: SomeInterface? {
+    ///         return parent(as: SomeInterface.self)
+    ///     }
+    ///
+    /// For example, this interactor belongs to the "Profile" module and you need to interact with the "Settings" parent interactor:
+    ///
+    ///     var parent: ProfileToSettingsInterface? {
+    ///         return parent(as: ProfileToSettingsInterface.self)
+    ///     }
+    ///
+    /// - Note: You don't should storage this instance directly, because it can lead to implicit errors.
+    /// - Returns: An instance of a parent interactor casted to the given interface; otherwise, `nil`.
+    public final func parent<Interface>(as: Interface.Type) -> Interface? {
+        guard let module = _module else {
+            log("Couldn't take the parent interactor because this interactor doesn't belong to the module",
+                category: .moduleCommunication,
+                level: .error)
+            return nil
+        }
+        return module.interactor(of: .parent) as? Interface
+    }
+    
+    /// Returns an instance of a specific child interactor casted to the given interface.
+    ///
+    /// You usually use this method when it's not enough for you to simply pass/receive some data to/from a specific child interactor,
+    /// so you create an individual communication interface to this child interactor.
+    /// Then you define a computed property as in the example below:
+    ///
+    ///     var someChild: SomeInterface? {
+    ///         return child("some", as: SomeInterface.self)
+    ///     }
+    ///
+    /// For example, this interactor belongs to the "Settings" module and you need to interact with the "Profile" child interactor:
+    ///
+    ///     var profileModule: SettingsToProfileInterface? {
+    ///         return child("Profile", as: SettingsToProfileInterface.self)
+    ///     }
+    ///
+    /// - Note: You don't should storage this instance directly, because it can lead to implicit errors.
+    /// - Returns: An instance of a specific child interactor casted to the given interface; otherwise, `nil`.
+    public final func child<Interface>(_ child: String, as: Interface.Type) -> Interface? {
+        guard let module = _module else {
+            log("Couldn't take the `\(child)` child interactor because this interactor doesn't belong to the module",
+                category: .moduleCommunication,
+                level: .error)
+            return nil
+        }
+        return module.interactor(of: .child(child)) as? Interface
     }
     
     
