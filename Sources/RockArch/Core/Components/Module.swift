@@ -73,7 +73,7 @@ open class RAModule: RAComponent {
         switch receiver {
         case .child(let childName):
             guard let child = children[childName] else {
-                log("Cannot send the \(signal) to the non-existent `\(childName)` child module",
+                log("Couldn't send the \(signal) to the non-existent `\(childName)` child module",
                     category: .moduleCommunication,
                     level: .error)
                 return false
@@ -83,7 +83,7 @@ open class RAModule: RAComponent {
             sender = .parent
         case .parent:
             guard let parent else {
-                log("Cannot send the \(signal) to the non-existent parent module",
+                log("Couldn't send the \(signal) to the non-existent parent module",
                     category: .moduleCommunication,
                     level: .error)
                 return false
@@ -102,7 +102,7 @@ open class RAModule: RAComponent {
         switch sender {
         case .child(let childName):
             guard children.hasKey(childName) else {
-                log("Cannot receive the \(signal) from the non-existent `\(childName)` child module",
+                log("Couldn't receive the \(signal) from the non-existent `\(childName)` child module",
                     category: .moduleCommunication,
                     level: .error)
                 return false
@@ -111,7 +111,7 @@ open class RAModule: RAComponent {
             message = "Received the \(signal) from the `\(childName)` child module"
         case .parent:
             guard let parent else {
-                log("Cannot receive the \(signal) from the non-existent parent module",
+                log("Couldn't receive the \(signal) from the non-existent parent module",
                     category: .moduleCommunication,
                     level: .error)
                 return false
@@ -132,6 +132,30 @@ open class RAModule: RAComponent {
         }
     }
     
+    /// Returns an interactor of a specific relative if possible.
+    internal func interactor(of relative: RARelative) -> RAAbstractInteractor? {
+        let relatedInteractor: RAAbstractInteractor
+        switch relative {
+        case .child(let childName):
+            guard let child = children[childName] else {
+                log("Couldn't take an interactor from the non-existent `\(childName)` child module",
+                    category: .moduleCommunication,
+                    level: .error)
+                return nil
+            }
+            relatedInteractor = child.interactor
+        case .parent:
+            guard let parent else {
+                log("Couldn't take an interactor from the non-existent parent module",
+                    category: .moduleCommunication,
+                    level: .error)
+                return nil
+            }
+            relatedInteractor = parent.interactor
+        }
+        return relatedInteractor
+    }
+    
     
     // MARK: - Child Management
     
@@ -143,13 +167,13 @@ open class RAModule: RAComponent {
     /// - Returns: `True` if control has been transferred to a child module; otherwise, `False`.
     internal final func invoke(by childName: String) -> Bool {
         guard isLoaded else {
-            log("Cannot invoke the `\(childName)` child module because this module is not loaded into memory",
+            log("Couldn't invoke the `\(childName)` child module because this module is not loaded into memory",
                 category: .moduleManagement,
                 level: .error)
             return false
         }
         guard isActive else {
-            log("Cannot invoke the `\(childName)` child module because this module is not active",
+            log("Couldn't invoke the `\(childName)` child module because this module is not active",
                 category: .moduleManagement,
                 level: .error)
             return false
@@ -159,13 +183,13 @@ open class RAModule: RAComponent {
             child = existingChild
         } else {
             guard let builtChild = build(by: childName) else {
-                log("Cannot invoke the `\(childName)` child module because it cannot be built",
+                log("Couldn't invoke the `\(childName)` child module because it cannot be built",
                     category: .moduleManagement,
                     level: .error)
                 return false
             }
             guard load(builtChild) else {
-                log("Cannot invoke the `\(childName)` child module because it cannot be loaded into memory",
+                log("Couldn't invoke the `\(childName)` child module because it cannot be loaded into memory",
                     category: .moduleManagement,
                     level: .error)
                 return false
@@ -183,19 +207,19 @@ open class RAModule: RAComponent {
     /// - Returns: `True` if control has been taken away from a child module; otherwise, `False`.
     internal final func revoke(by childName: String) -> Bool {
         guard isLoaded else {
-            log("Cannot revoke the `\(childName)` child module because this module is not loaded into memory",
+            log("Couldn't revoke the `\(childName)` child module because this module is not loaded into memory",
                 category: .moduleManagement,
                 level: .error)
             return false
         }
         guard isSuspended else {
-            log("Cannot revoke the `\(childName)` child module because this module was not suspended",
+            log("Couldn't revoke the `\(childName)` child module because this module was not suspended",
                 category: .moduleManagement,
                 level: .error)
             return false
         }
         guard let child = children[childName] else {
-            log("Cannot revoke the `\(childName)` child module because it doesn't exist",
+            log("Couldn't revoke the `\(childName)` child module because it doesn't exist",
                 category: .moduleManagement,
                 level: .error)
             return false
@@ -210,13 +234,13 @@ open class RAModule: RAComponent {
     @discardableResult
     private func start(_ child: RAModule, shouldSuspendThisModule moduleSuspendsWork: Bool) -> Bool {
         guard child.isLoaded else {
-            log("Cannot start the `\(child.name)` child module because it's not loaded into memory",
+            log("Couldn't start the `\(child.name)` child module because it's not loaded into memory",
                 category: .moduleManagement,
                 level: .error)
             return false
         }
         guard child.isInactive else {
-            log("Cannot start the `\(child.name)` child module because it's already started",
+            log("Couldn't start the `\(child.name)` child module because it's already started",
                 category: .moduleManagement,
                 level: .warning)
             return false
@@ -224,7 +248,7 @@ open class RAModule: RAComponent {
         let context = dataSource.context(for: child.name)
         let childCanStart = child.delegate.moduleShouldStart(within: context)
         guard childCanStart else {
-            log("Cannot start the `\(child.name)` child module because it didn't get the necessary context",
+            log("Couldn't start the `\(child.name)` child module because it didn't get the necessary context",
                 category: .moduleManagement,
                 level: .error)
             return false
@@ -245,13 +269,13 @@ open class RAModule: RAComponent {
     @discardableResult
     private func stop(_ child: RAModule, shouldResumeThisModule moduleResumesWork: Bool) -> Bool {
         guard child.isLoaded else {
-            log("Cannot stop the `\(child.name)` child module because it's not loaded into memory",
+            log("Couldn't stop the `\(child.name)` child module because it's not loaded into memory",
                 category: .moduleManagement,
                 level: .error)
             return false
         }
         guard child.isActive || child.isSuspended else {
-            log("Cannot stop the `\(child.name)` child module because it's already inactive",
+            log("Couldn't stop the `\(child.name)` child module because it's already inactive",
                 category: .moduleManagement,
                 level: .warning)
             return false
@@ -289,19 +313,19 @@ open class RAModule: RAComponent {
     @discardableResult
     public final func preload(by childName: String) -> Bool {
         guard isLoaded else {
-            log("Cannot preload the `\(childName)` child module because this module is not loaded into memory",
+            log("Couldn't preload the `\(childName)` child module because this module is not loaded into memory",
                 category: .moduleManagement,
                 level: .error)
             return false
         }
         guard children[childName].isNil else {
-            log("Cannot preload the `\(childName)` child module because it's already loaded into memory",
+            log("Couldn't preload the `\(childName)` child module because it's already loaded into memory",
                 category: .moduleManagement,
                 level: .warning)
             return false
         }
         guard let builtChild = build(by: childName) else {
-            log("Cannot preload the `\(childName)` child module because it cannot be built",
+            log("Couldn't preload the `\(childName)` child module because it cannot be built",
                 category: .moduleManagement,
                 level: .error)
             return false
@@ -314,13 +338,13 @@ open class RAModule: RAComponent {
     @discardableResult
     public final func unload(by childName: String) -> Bool {
         guard let child = children[childName] else {
-            log("Cannot unload the `\(childName)` child module because there's no loaded module with this name",
+            log("Couldn't unload the `\(childName)` child module because there's no loaded module with this name",
                 category: .moduleManagement,
                 level: .error)
             return false
         }
         guard child.isInactive else {
-            log("Cannot unload the `\(childName)` child module because it's active or suspended",
+            log("Couldn't unload the `\(childName)` child module because it's active or suspended",
                 category: .moduleManagement,
                 level: .error)
             return false
@@ -334,7 +358,7 @@ open class RAModule: RAComponent {
         let dependency = dataSource.dependency(for: child.name)
         let childCanLoad = child.delegate.moduleShouldLoad(byInjecting: dependency)
         guard childCanLoad else {
-            log("Cannot load the `\(child.name)` child module because it didn't get the necessary dependency",
+            log("Couldn't load the `\(child.name)` child module because it didn't get the necessary dependency",
                 category: .moduleManagement,
                 level: .error)
             return false
@@ -380,7 +404,7 @@ open class RAModule: RAComponent {
     /// Builds a specific child module by its name if possible.
     private func build(by childName: String) -> RAModule? {
         guard let builder else {
-            log("Cannot build the `\(childName)` child module because this module doesn't have a builder.",
+            log("Couldn't build the `\(childName)` child module because this module doesn't have a builder.",
                 category: .moduleManagement,
                 level: .error)
             return nil
