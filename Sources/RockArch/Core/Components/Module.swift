@@ -68,60 +68,58 @@ open class RAModule: RAComponent {
     /// Sends a signal to a specific receiver if possible.
     internal final func send(_ signal: RASignal, to receiver: RARelative) -> Bool {
         let message: String
-        let signalLabel = signal.label.isEmpty ? "unnamed" : signal.label
         let receivingModule: RAModule
         let sender: RARelative
         switch receiver {
         case .child(let childName):
             guard let child = children[childName] else {
-                log("Cannot send the `\(signalLabel)` signal to the non-existent `\(childName)` child module",
+                log("Cannot send the \(signal) to the non-existent `\(childName)` child module",
                     category: .moduleCommunication,
                     level: .error)
                 return false
             }
-            message = "Sended the `\(signalLabel)` signal to the \(childName) child module"
+            message = "Sended the \(signal) to the \(childName) child module"
             receivingModule = child
             sender = .parent
         case .parent:
             guard let parent else {
-                log("Cannot send the `\(signalLabel)` signal to the non-existent parent module",
+                log("Cannot send the \(signal) to the non-existent parent module",
                     category: .moduleCommunication,
                     level: .error)
                 return false
             }
-            message = "Sended the `\(signalLabel)` signal to the `\(parent.name)` parent module"
+            message = "Sended the \(signal) to the `\(parent.name)` parent module"
             receivingModule = parent
             sender = .child(name)
         }
-        log(message, category: .moduleCommunication, level: .info)
+        log(message, category: .moduleCommunication)
         return receivingModule.receive(signal, from: sender)
     }
     
     /// Receives a signal from a specific sender if possible.
     fileprivate final func receive(_ signal: RASignal, from sender: RARelative) -> Bool {
         let message: String
-        let signalLabel = signal.label.isEmpty ? "unnamed" : signal.label
         switch sender {
         case .child(let childName):
             guard children.hasKey(childName) else {
-                log("Cannot receive the `\(signalLabel)` signal from the non-existent `\(childName)` child module",
+                log("Cannot receive the \(signal) from the non-existent `\(childName)` child module",
                     category: .moduleCommunication,
                     level: .error)
                 return false
             }
             interactor.child(childName, didPassValue: signal.value, withLabel: signal.label)
-            message = "Received the `\(signalLabel)` signal from the `\(childName)` child module"
+            message = "Received the \(signal) from the `\(childName)` child module"
         case .parent:
             guard let parent else {
-                log("Cannot receive the `\(signalLabel)` signal from the non-existent parent module",
+                log("Cannot receive the \(signal) from the non-existent parent module",
                     category: .moduleCommunication,
                     level: .error)
                 return false
             }
             interactor.parent(didPassValue: signal.value, withLabel: signal.label)
-            message = "Received the `\(signalLabel)` signal from the `\(parent.name)` parent module"
+            message = "Received the \(signal) from the `\(parent.name)` parent module"
         }
-        log(message, category: .moduleCommunication, level: .info)
+        log(message, category: .moduleCommunication)
         return true
     }
     

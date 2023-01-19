@@ -43,8 +43,8 @@ public struct RASignal: CustomStringConvertible {
     
     /// A textual representation of this signal.
     public var description: String {
-        let label = label.isEmpty ? "Unnamed" : label
-        return "\(label)-Signal"
+        let label = label.isEmpty ? "unnamed" : "`\(label)`"
+        return "\(label) signal"
     }
     
     /// Creates a named signal with some value.
