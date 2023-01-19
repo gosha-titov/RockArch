@@ -60,13 +60,21 @@ public struct RASignal: CustomStringConvertible {
 ///
 /// For example, the **A** module loads the **B** module into its memory.
 /// That is, **A** becomes a **parent** for **B**, and **B** becomes a **child** for **A**.
-public enum RARelative: Equatable {
+public enum RARelative: Equatable, CustomStringConvertible {
     
     /// A child of this object.
     case child(String)
     
     /// A parent of this object.
     case parent
+    
+    /// A textual representation of this relative.
+    public var description: String {
+        switch self {
+        case .child(let name): return "`\(name)` child"
+        case .parent: return "parent"
+        }
+    }
     
 }
 
