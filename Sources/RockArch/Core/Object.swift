@@ -12,8 +12,8 @@ internal final class RAWeakObject: RAObject {
     /// A textual representation of the type of the reference object.
     internal let type: String
     
-    /// Creates a weak object that stores the given `RAObject` instance in the right way.
-    internal init(reference object: RAObject) {
+    /// Creates a weak object that stores the given `RAObject` instance, safely.
+    internal init(safeReference object: RAObject) {
         if let weakObject = object as? RAWeakObject {
             reference = weakObject.reference
         } else if let wrappedObject = object as? RAWrappedObject {
@@ -23,6 +23,13 @@ internal final class RAWeakObject: RAObject {
         }
         name = object.name
         type = object.type
+    }
+    
+    /// Creates a weak object that stores the given `AnyObject` instance, directly.
+    internal init(name: String, type: String, directReference reference: AnyObject) {
+        self.reference = reference
+        self.name = name
+        self.type = type
     }
     
 }
@@ -36,10 +43,10 @@ internal final class RAWrappedObject: RAObject {
     /// The strong reference to a specific object.
     internal let value: AnyObject
     
-    /// A string associated with the name of the reference object.
+    /// A string associated with the name of the wrapped object.
     internal let name: String
     
-    /// A textual representation of the type of the reference object.
+    /// A textual representation of the type of the wrapped object.
     internal let type: String
     
     /// Creates a wrapped object that stores the given `AnyObject` instance.
