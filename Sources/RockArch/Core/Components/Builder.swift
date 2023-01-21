@@ -1,26 +1,36 @@
 /// A builder that can build child modules by their associated names.
-open class RABuilder: RAComponent, RAModuleBelongable {
+///
+/// The builder is used when a module can have child modules. So, it uses a builder to build them.
+///
+/// You always create a new class that subclasses the `RABuilder` class and override the `build(by:)` method.
+/// For example, you create a builder for the `Main` module that can have the `Feed` and `Chat` child modules:
+///
+///     final class MainBuilder: RABuilder {
+///
+///         override func build(by name: String) -> RAModule {
+///         switch name {
+///         case "Feed": return FeedModule()
+///         case "Chat": return ChatModule()
+///         default: return super.build(by: name)
+///         }
+///
+///     }
+///
+/// The builder also has a lifecycle that consists of the `setup()` and `clean()` methods.
+/// You can override them if needed.
+///
+open class RABuilder: RAComponentIntegratedIntoModule {
     
     // MARK: - Properties
     
-    /// A name of the module to that this builder belongs.
-    public final var name: String {
-        return _module?.name ?? "Unnamed"
-    }
+    /// A module to that this builder belongs.
+    public weak var module: RAModule?
     
-    /// A textual representation of the type of this builder.
+    /// The string that has the "Builder" value.
     public let type: String = "Builder"
     
-    /// The current state of the module to that this builder belongs.
-    public final var state: RAComponentState {
-        return _module?.state ?? .inactive
-    }
     
-    /// An internal module to that this builder belongs.
-    internal weak var _module: RAModule?
-    
-    
-    // MARK: - Methods
+    // MARK: - Children Building
     
     /// Builds a specific module by its name.
     ///
@@ -79,18 +89,44 @@ open class RABuilder: RAComponent, RAModuleBelongable {
     ///
     /// You should return a result of calling the `super` method when you cannot build a module.
     open func build(by name: String) -> RAModule {
-        log("Cannot build a module by name `\(name)`",
+        log("Couldn't build a module by name `\(name)`",
             category: .moduleManagement,
             level: .error)
         return RAEmptyModule()
     }
     
     
+    // MARK: - Lifecycle
+    
+    /// Setups this builder.
+    ///
+    /// This method is called when the module to which this builder belongs is loaded into memory and assembled.
+    /// You usually override this method to perform additional initialization on your private properties.
+    /// You don't need to call the `super` method.
+    open func setup() -> Void {}
+    
+    /// Cleans this builder.
+    ///
+    /// This method is called when the module to which this builder belongs is about to be unloaded from memory and disassembled.
+    /// You usually override this method to clean your properties.
+    /// You don't need to call the `super` method.
+    open func clean() -> Void {}
+    
+    /// Called when the module is loaded into memory and assembled.
+    internal final func _setup() -> Void {
+        RALeakDetector.register(self)
+        setup()
+    }
+    
+    /// Called when the module is about to be unloaded from memory and disassembled.
+    internal final func _clean() -> Void {
+        clean()
+    }
+    
+    
     // MARK: - Public Init
     
     /// Creates a builder.
-    public init() {
-        RALeakDetector.register(self)
-    }
+    public init() {}
     
 }
