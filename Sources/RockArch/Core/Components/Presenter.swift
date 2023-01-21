@@ -17,29 +17,6 @@ open class RAAbstractPresenter: RAComponent {
         return _module?.state ?? .inactive
     }
     
-    /// The view controller of the module.
-    public let viewController: UIViewController
-    
-    /// A boolean value that indicates whether the view controller is a navigation controller.
-    public final var hasNavigationController: Bool {
-        return viewController is UINavigationController
-    }
-    
-    /// A boolean value that indicates whether the view controller is a tab bar controller.
-    public final var hasTabBarController: Bool {
-        return viewController is UITabBarController
-    }
-    
-    /// The view controller as a navigation controller, or `nil`.
-    public final var navigationController: UINavigationController? {
-        return viewController as? UINavigationController
-    }
-    
-    /// The view controller as a tab bar controller, or `nil`.
-    public final var tabBarController: UITabBarController? {
-        return viewController as? UITabBarController
-    }
-    
     
     // MARK: Internal Properties
     
@@ -49,12 +26,66 @@ open class RAAbstractPresenter: RAComponent {
     /// An internal interactor that is set by a module.
     internal weak var _interactor: RAAbstractInteractor?
     
+    /// The view controller of the module.
+    internal let viewController: UIViewController
+    
+    /// The view controller as a navigation controller, or `nil`.
+    internal final var navigationController: UINavigationController? {
+        return viewController as? UINavigationController
+    }
+    
+    /// The view controller as a tab bar controller, or `nil`.
+    internal final var tabBarController: UITabBarController? {
+        return viewController as? UITabBarController
+    }
+    
+    /// A boolean value that indicates whether the view controller is a navigation controller.
+    internal final var hasNavigationController: Bool {
+        return viewController is UINavigationController
+    }
+    
+    /// A boolean value that indicates whether the view controller is a tab bar controller.
+    internal final var hasTabBarController: Bool {
+        return viewController is UITabBarController
+    }
+    
+    
+    // MARK: - Lifecycle
+    
+    /// Called when the module is loaded into memory.
+    internal final func _setup() -> Void {
+        let view = RAWrappedObject(name: name, type: "View", objectToWrap: viewController)
+        RALeakDetector.register(view)
+        setup()
+    }
+    
+    /// Called when the module is about to be unloaded from memory.
+    internal final func _clean() -> Void {
+        clean()
+    }
+    
+    /// Setups this presenter.
+    ///
+    /// This method is called when the module to which this presenter belongs is loaded into memory.
+    /// You usually override this method to perform additional initialization on your private properties.
+    /// You don't need to call the `super` method.
+    open func setup() -> Void {}
+    
+    /// Cleans this presenter.
+    ///
+    /// This method is called when the module to which this presenter belongs is about to be unloaded from memory.
+    /// You usually override this method to clean your properties.
+    /// You don't need to call the `super` method.
+    open func clean() -> Void {}
+    
     
     // MARK: - Internal Init
     
     /// Creates an abstract presenter instance with a specific view controller.
     internal init(viewController: UIViewController) {
         self.viewController = viewController
+        viewController._presenter = self
+        RALeakDetector.register(self)
     }
     
 }
