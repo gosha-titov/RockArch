@@ -25,8 +25,15 @@ internal final class RAWeakObject: RAObject {
         type = object.type
     }
     
-    /// Creates a weak object that stores the given `AnyObject` instance, directly.
-    internal init(name: String, type: String, directReference reference: AnyObject) {
+    /// Creates a weak object that stores the given `RAObject` instance, directly.
+    internal init(directReference object: RAObject) {
+        reference = object
+        name = object.name
+        type = object.type
+    }
+    
+    /// Creates a weak object that stores the given `AnyObject` instance.
+    internal init(name: String, type: String, reference: AnyObject) {
         self.reference = reference
         self.name = name
         self.type = type
