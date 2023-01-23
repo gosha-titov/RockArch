@@ -1,23 +1,26 @@
-internal final class RAModuleStorage: RAWeakStorage<RAModule> {
+/// A storage that weakly stores specific modules.
+internal final class RAWeakModuleStorage: RAWeakStorage<RAModule> {
     
-    /// The singleton module storage instance.
-    internal static let shared = RAModuleStorage()
+    /// The singleton weak module storage instance.
+    internal static let shared = RAWeakModuleStorage()
     
-    /// Creates a module storage instance.
+    /// Creates a weak module storage instance.
     private init() {
-        super.init(name: "Module")
+        super.init(name: "WeakModule")
     }
     
 }
 
-internal final class RAInteractorStorage: RAWeakStorage<RAAbstractInteractor> {
+
+/// A storage that weakly stores specific interactors.
+internal final class RAWeakInteractorStorage: RAWeakStorage<RAAbstractInteractor> {
     
-    /// The singleton interactor storage instance.
-    internal static let shared = RAInteractorStorage()
+    /// The singleton weak interactor storage instance.
+    internal static let shared = RAWeakInteractorStorage()
     
-    /// Creates an interactor storage instance.
+    /// Creates a weak interactor storage instance.
     private init() {
-        super.init(name: "Interactor")
+        super.init(name: "WeakInteractor")
     }
     
 }
@@ -37,7 +40,7 @@ internal final class RAInteractorStorage: RAWeakStorage<RAAbstractInteractor> {
 ///     // Then extend a type with this storage:
 ///     extension Object {
 ///
-///         var dependency: Dependency {
+///         var dependency: Dependency? {
 ///             get {
 ///                 let storage = DependencyStorage.shared
 ///                 return storage.object(byKey: debugDescription)
@@ -54,34 +57,13 @@ internal final class RAInteractorStorage: RAWeakStorage<RAAbstractInteractor> {
 ///
 ///     }
 ///
-open class RAWeakStorage<Object>: RAStorage where Object: AnyObject {
-    
-    // MARK: - Properties
-    
-    /// A string associated with the name of this storage.
-    public let name: String
-    
-    /// The string that has the "Storage" value.
-    public let type: String = "Storage"
-    
-    /// The array that consists of stored objects.
-    private var storedObjects = [String: RAWeakObject]()
-    
-    
-    // MARK: - Methods
-    
-    /// Returns an object by the given key.
-    public final func object(byKey key: String) -> Object? {
+open class RAWeakStorage<Object>: RAAbstractStorage<Object, RAWeakObject> where Object: AnyObject {
+
+    public final override func object(byKey key: String) -> Object? {
         return storedObjects[key]?.reference as? Object
     }
     
-    /// Removes an object for the given key.
-    public final func removeObject(forKey key: String) -> Void {
-        storedObjects.removeValue(forKey: key)
-    }
-    
-    /// Registers a specific object for the given key.
-    public final func register(_ object: Object, forKey key: String) -> Void {
+    public final override func register(_ object: Object, forKey key: String) -> Void {
         let weakObject: RAWeakObject
         if let object = object as? RAObject {
             weakObject = .init(directReference: object)
@@ -91,11 +73,105 @@ open class RAWeakStorage<Object>: RAStorage where Object: AnyObject {
         storedObjects[key] = weakObject
     }
     
+    public override init(name: String = "Weak") {
+        super.init(name: name)
+    }
+
+}
+
+
+/// A storage that strongly stores specific objects.
+///
+/// The strong storage is mainly use when you need to extend some type with a stored object:
+///
+///     // Define a new class that subclasses the `RAStrongStorage` class:
+///     final class DependencyStorage: RAStrongStorage<Dependency> {
+///
+///         static let shared = DependencyStorage()
+///
+///     }
+///
+///     // Then extend a type with this storage:
+///     extension Object {
+///
+///         var dependency: Dependency? {
+///             get {
+///                 let storage = DependencyStorage.shared
+///                 return storage.object(byKey: debugDescription)
+///             }
+///             set {
+///                 let storage = DependencyStorage.shared
+///                 if let dependency = newValue {
+///                     storage.register(dependency, forKey: debugDescription)
+///                 } else {
+///                     storage.removeObject(forKey: debugDescription)
+///                 }
+///             }
+///         }
+///
+///     }
+///
+open class RAStrongStorage<Object>: RAAbstractStorage<Object, RAWrappedObject> where Object: AnyObject {
     
-    // MARK: - Init
+    public final override func object(byKey key: String) -> Object? {
+        return storedObjects[key]?.value as? Object
+    }
+    
+    public final override func register(_ object: Object, forKey key: String) -> Void {
+        let wrappedObject: RAWrappedObject
+        if let object = object as? RAObject {
+            wrappedObject = .init(directReference: object)
+        } else {
+            wrappedObject = .init(name: "Unnamed", type: "AnyObject", objectToWrap: object)
+        }
+        storedObjects[key] = wrappedObject
+    }
+    
+    public override init(name: String = "Strong") {
+        super.init(name: name)
+    }
+    
+}
+
+
+/// An abstract storage that has a basic behavior.
+open class RAAbstractStorage<ObjectToStore, ObjectThatStores>: RAStorage where ObjectToStore: AnyObject, ObjectThatStores: AnyObject {
+    
+    // MARK: Properties
+    
+    /// A string associated with the name of this storage.
+    public let name: String
+    
+    /// The string that has the "Storage" value.
+    public let type: String = "Storage"
+    
+    /// The array that consists of stored objects.
+    fileprivate var storedObjects = [String: ObjectThatStores]()
+    
+    
+    // MARK: Methods
+    
+    /// Returns an object by the given key.
+    public func object(byKey key: String) -> ObjectToStore? {
+        // Must be overriden
+        return nil
+    }
+    
+    /// Removes an object for the given key.
+    public final func removeObject(forKey key: String) -> Void {
+        storedObjects.removeValue(forKey: key)
+    }
+    
+    /// Registers a specific object for the given key.
+    public func register(_ object: ObjectToStore, forKey key: String) -> Void {
+        // Must be overriden
+    }
+    
+    
+    // MARK: Init
     
     /// Creates a named storage instance.
-    public init(name: String = "Weak") {
+    fileprivate init(name: String = "Abstract") {
         self.name = name
     }
     
