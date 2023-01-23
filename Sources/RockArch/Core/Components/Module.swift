@@ -45,7 +45,7 @@ open class RAModule: RAComponent {
     internal let router: RARouter
     
     /// The internal view of this module, or `nil`.
-    internal let view: RAAbstractView?
+    internal let view: (any RAView)?
     
     /// The internal builder of this module, or `nil`.
     internal let builder: RABuilder?
@@ -53,8 +53,8 @@ open class RAModule: RAComponent {
     /// The object that provides the data for this module.
     internal let dataSource: RAModuleDataSource
     
-    /// The object that acts as the delegate of this module.
-    internal let delegate: RAModuleLifecycleDelegate
+    /// The object that acts as the lifecycle delegate of this module.
+    internal let lifecycleDelegate: RAModuleLifecycleDelegate
     
     
     // MARK: Private Properties
@@ -125,7 +125,7 @@ open class RAModule: RAComponent {
     
     /// Receives an outcome from a specific child.
     private func receiveOutcome(from child: RAModule) -> Void {
-        if let outcome = child.delegate.moduleShouldStop() {
+        if let outcome = child.lifecycleDelegate.moduleShouldStop() {
             log("Recieved an outcome from the `\(child.name)` child module",
                 category: .moduleCommunication)
             interactor.child(child.name, didPassOutcome: outcome)
@@ -246,7 +246,7 @@ open class RAModule: RAComponent {
             return false
         }
         let context = dataSource.context(for: child.name)
-        let childCanStart = child.delegate.moduleShouldStart(within: context)
+        let childCanStart = child.lifecycleDelegate.moduleShouldStart(within: context)
         guard childCanStart else {
             log("Couldn't start the `\(child.name)` child module because it didn't get the necessary context",
                 category: .moduleManagement,
@@ -254,13 +254,13 @@ open class RAModule: RAComponent {
             return false
         }
         if moduleSuspendsWork {
-            delegate.moduleWillSuspend()
+            lifecycleDelegate.moduleWillSuspend()
             suspend()
         }
         child.start()
-        child.delegate.moduleDidStart()
+        child.lifecycleDelegate.moduleDidStart()
         if moduleSuspendsWork {
-            delegate.moduleDidSuspend()
+            lifecycleDelegate.moduleDidSuspend()
         }
         return true
     }
@@ -283,14 +283,14 @@ open class RAModule: RAComponent {
         child.stopAllChildren()
         receiveOutcome(from: child)
         if moduleResumesWork {
-            delegate.moduleWillResume()
+            lifecycleDelegate.moduleWillResume()
         }
         child.stop()
         if moduleResumesWork {
             resume()
-            delegate.moduleDidResume()
+            lifecycleDelegate.moduleDidResume()
         }
-        child.delegate.moduleDidStop()
+        child.lifecycleDelegate.moduleDidStop()
         if child.shouldKeepLoadedIfCompleted == false {
             unload(child)
         }
@@ -310,8 +310,7 @@ open class RAModule: RAComponent {
     
     /// Preloads a specific child into memory if possible.
     /// - Returns: `True` if the child module has been loaded into memory; otherwise, `False`.
-    @discardableResult
-    public final func preload(by childName: String) -> Bool {
+    internal final func preload(by childName: String) -> Bool {
         guard isLoaded else {
             log("Couldn't preload the `\(childName)` child module because this module is not loaded into memory",
                 category: .moduleManagement,
@@ -335,8 +334,7 @@ open class RAModule: RAComponent {
     
     /// Unloads a specific child from memory if possible.
     /// - Returns: `True` if the child module has been unloaded from memory; otherwise, `False`.
-    @discardableResult
-    public final func unload(by childName: String) -> Bool {
+    internal final func unload(by childName: String) -> Bool {
         guard let child = children[childName] else {
             log("Couldn't unload the `\(childName)` child module because there's no loaded module with this name",
                 category: .moduleManagement,
@@ -356,7 +354,7 @@ open class RAModule: RAComponent {
     /// Loads a specific module into memory if possible.
     private func load(_ child: RAModule) -> Bool {
         let dependency = dataSource.dependency(for: child.name)
-        let childCanLoad = child.delegate.moduleShouldLoad(byInjecting: dependency)
+        let childCanLoad = child.lifecycleDelegate.moduleShouldLoad(byInjecting: dependency)
         guard childCanLoad else {
             log("Couldn't load the `\(child.name)` child module because it didn't get the necessary dependency",
                 category: .moduleManagement,
@@ -365,7 +363,7 @@ open class RAModule: RAComponent {
         }
         attach(child)
         child.load()
-        child.delegate.moduleDidLoad()
+        child.lifecycleDelegate.moduleDidLoad()
         return true
     }
     
@@ -378,7 +376,7 @@ open class RAModule: RAComponent {
     
     /// Unloads a specific module from memory.
     private func unload(_ child: RAModule) -> Void {
-        child.delegate.moduleWillUnload()
+        child.lifecycleDelegate.moduleWillUnload()
         child.unload()
         detach(child)
     }
@@ -414,16 +412,16 @@ open class RAModule: RAComponent {
     }
     
     
-    // MARK: - Assembly and Disassembly
+    // MARK: - Assembly and Disassembly, Setuping and Cleaning
     
     /// Assembles this module by connecting its components to each other and to itself.
     private func assemble() -> Void {
         view?._interactor = interactor
         interactor._router = router
         interactor._view = view
-        interactor._module = self
-        router._module = self
-        view?._module = self
+        interactor.module = self
+        router.module = self
+        view?.module = self
     }
     
     /// Disassembles this module by disconnecting components from each other and from itself.
@@ -431,9 +429,25 @@ open class RAModule: RAComponent {
         view?._interactor = nil
         interactor._router = nil
         interactor._view = nil
-        interactor._module = nil
-        router._module = nil
-        view?._module = nil
+        interactor.module = nil
+        router.module = nil
+        view?.module = nil
+    }
+    
+    /// Setups this module so that it's ready to work.
+    private func setup() -> Void {
+        builder?.setup()
+        router.setup()
+        view?.setup()
+        interactor.setup()
+    }
+    
+    /// Cleans this module so that it's ready to be deinited.
+    private func clean() -> Void {
+        interactor.clean()
+        view?.clean()
+        router.clean()
+        builder?.clean()
     }
     
     
@@ -443,6 +457,7 @@ open class RAModule: RAComponent {
     internal final func load() -> Void {
         defer { log("Loaded into memory", category: .moduleLifecycle) }
         assemble()
+        setup()
         isLoaded = true
     }
     
@@ -474,6 +489,7 @@ open class RAModule: RAComponent {
     internal final func unload() -> Void {
         defer { log("Unloaded from memory", category: .moduleLifecycle) }
         unloadAllChildren()
+        clean()
         disassemble()
         isLoaded = false
     }
@@ -496,14 +512,14 @@ open class RAModule: RAComponent {
     /// Implement this by subclassing the `RARouter` class.
     ///
     /// - Parameter view: The view that is responsible for configurating and updating UI, catching and handling user interactions.
-    /// Implement this by subclassing the `RAView` class.
+    /// Implement this by creating a new class that conforms to the `RAView` protocol.
     /// If this is a logical module that doesn't have a view, then pass `nil` (default).
     ///
     /// - Parameter builder: The builder that is responsible for creating child modules by their associated names.
     /// Implement this by subclassing the `RABuilder` class.
     /// If this module don't have child modules, then pass `nil` (default).
     ///
-    public init(name: String, interactor: RAAbstractInteractor, router: RARouter, view: RAAbstractView? = nil, builder: RABuilder? = nil) {
+    public init(name: String, interactor: RAAbstractInteractor, router: RARouter, view: (any RAView)? = nil, builder: RABuilder? = nil) {
         defer { log("Created", category: .moduleLifecycle) }
         self.name = name
         self.interactor = interactor
@@ -511,7 +527,7 @@ open class RAModule: RAComponent {
         self.view = view
         self.builder = builder
         dataSource = interactor
-        delegate = interactor
+        lifecycleDelegate = interactor
         RALeakDetector.register(self)
     }
     
