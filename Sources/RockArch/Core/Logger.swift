@@ -29,6 +29,9 @@ public final class RAConsoleLogger: RALogger {
         print("[\(category)] \(time) <\(level)> \(author): \(text).")
     }
     
+    /// Creates a console logger instance.
+    public init() {}
+    
 }
 
 
@@ -57,6 +60,9 @@ public final class RAOSLogger: RALogger {
         let message = message.text
         os_log(logType, log: log, "%{public}@", message)
     }
+    
+    /// Creates an os logger instance.
+    public init() {}
     
 }
 
@@ -90,6 +96,14 @@ public protocol RASimplifiedLoggable where Self: RAObject {
     /// - Parameter level:    A level with which this message will be logged.
     func log(_ message: String, category: String, level: RALogLevel, fileID: String, function: String, line: Int) -> Void
     
+}
+
+public extension RASimplifiedLoggable {
+    
+    func log(_ message: String, category: String, level: RALogLevel = .debug, fileID: String = #fileID, function: String = #function, line: Int = #line) -> Void {
+        RABlackBox.log(message, author: description, category: category, level: level, fileID: fileID, function: function, line: line)
+    }
+    
     /// Logs a message in a simplified way by specifying a sender as this object.
     ///
     /// Call this method when you need to log a message on behalf of this object.
@@ -104,18 +118,8 @@ public protocol RASimplifiedLoggable where Self: RAObject {
     /// - Parameter message:  A string to log.
     /// - Parameter category: A category of this message.
     /// - Parameter level:    A level with which this message will be logged.
-    func log(_ message: String, category: RALogCategory, level: RALogLevel, fileID: String, function: String, line: Int) -> Void
-    
-}
-
-public extension RASimplifiedLoggable {
-    
-    func log(_ message: String, category: String, level: RALogLevel = .debug, fileID: String = #fileID, function: String = #function, line: Int = #line) -> Void {
-        RABlackBox.log(message, author: description, category: category, level: level, fileID: fileID, function: function, line: line)
-    }
-    
     func log(_ message: String, category: RALogCategory, level: RALogLevel = .debug, fileID: String = #fileID, function: String = #function, line: Int = #line) -> Void {
-        RABlackBox.log(message, author: description, category: category, level: level, fileID: fileID, function: function, line: line)
+        log(message, category: category.rawValue, level: level, fileID: fileID, function: function, line: line)
     }
     
 }
