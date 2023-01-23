@@ -1,33 +1,74 @@
 import UIKit
 
-open class RAView: RAAbstractView {
+public protocol RAView: RAComponentIntegratedIntoModule where Self: UIViewController {
+    
+    associatedtype InteractorInterface
+    
+    var interactor: InteractorInterface? { get }
     
 }
 
-open class RAAbstractView: UIViewController, RAComponent, RAModuleBelongable {
+public extension RAView {
     
-    // MARK: - Public Properties
-    
-    /// A name of the module to that this view belongs.
-    public final var name: String {
-        return _module?.name ?? "Unnamed"
+    var module: RAModule? {
+        get {
+            let storage = RAWeakModuleStorage.shared
+            return storage.object(byKey: debugDescription)
+        }
+        set {
+            let storage = RAWeakModuleStorage.shared
+            if let module = newValue {
+                storage.register(module, forKey: debugDescription)
+            } else {
+                storage.removeObject(forKey: debugDescription)
+            }
+        }
     }
     
-    /// A textual representation of the type of this view.
-    public let type: String = "View"
-    
-    /// The current state of the module to that this view belongs.
-    public final var state: RAComponentState {
-        return _module?.state ?? .inactive
+    var interactor: InteractorInterface? {
+        return _interactor as? InteractorInterface
     }
     
+    var type: String {
+        return "View"
+    }
     
-    // MARK: - Internal Properties
+    func setup() {}
     
-    /// An internal module to that this view belongs.
-    internal weak var _module: RAModule?
+    func clean() {}
+    
+}
+
+
+extension UIViewController {
     
     /// An internal interactor that is set by a module.
-    internal weak var _interactor: RAAbstractInteractor?
+    internal var _interactor: RAAbstractInteractor? {
+        get {
+            let storage = RAWeakInteractorStorage.shared
+            return storage.object(byKey: debugDescription)
+        }
+        set {
+            let storage = RAWeakInteractorStorage.shared
+            if let interactor = newValue {
+                storage.register(interactor, forKey: debugDescription)
+            } else {
+                storage.removeObject(forKey: debugDescription)
+            }
+        }
+    }
+    
+    /// Called when the module is loaded into memory and assembled.
+    internal func _setup() -> Void {
+        guard let self = self as? RAComponentIntegratedIntoModule else { return }
+        RALeakDetector.register(self)
+        self.setup()
+    }
+    
+    /// Called when the module is about to be unloaded from memory and disassembled.
+    internal func _clean() -> Void {
+        guard let self = self as? RAComponentIntegratedIntoModule else { return }
+        self.clean()
+    }
     
 }
