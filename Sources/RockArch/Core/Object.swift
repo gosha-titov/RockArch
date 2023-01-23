@@ -1,19 +1,19 @@
 /// The object that weakly references a specific `AnyObject` instance.
 ///
 /// Weak objects are mainly used in collections that should not strongly reference objects.
-internal final class RAWeakObject: RAObject {
+open class RAWeakObject: RAObject {
     
     /// The weak reference to a specific object.
-    internal weak var reference: AnyObject?
+    public weak var reference: AnyObject?
     
     /// A string associated with the name of the reference object.
-    internal let name: String
+    public let name: String
     
     /// A textual representation of the type of the reference object.
-    internal let type: String
+    public let type: String
     
     /// Creates a weak object that stores the given `RAObject` instance, safely.
-    internal init(safeReference object: RAObject) {
+    public init(safeReference object: RAObject) {
         if let weakObject = object as? RAWeakObject {
             reference = weakObject.reference
         } else if let wrappedObject = object as? RAWrappedObject {
@@ -26,14 +26,14 @@ internal final class RAWeakObject: RAObject {
     }
     
     /// Creates a weak object that stores the given `RAObject` instance, directly.
-    internal init(directReference object: RAObject) {
+    public init(directReference object: RAObject) {
         reference = object
         name = object.name
         type = object.type
     }
     
     /// Creates a weak object that stores the given `AnyObject` instance.
-    internal init(name: String, type: String, reference: AnyObject) {
+    public init(name: String, type: String, reference: AnyObject) {
         self.reference = reference
         self.name = name
         self.type = type
@@ -45,19 +45,26 @@ internal final class RAWeakObject: RAObject {
 /// The object that wraps a specific `AnyObject` instance by strongly referencing it.
 ///
 /// Wrapped objects are mainly used to endow the `AnyObject` instance with the behavior of a `RAObject`.
-internal final class RAWrappedObject: RAObject {
+open class RAWrappedObject: RAObject {
     
     /// The strong reference to a specific object.
-    internal let value: AnyObject
+    public let value: AnyObject
     
     /// A string associated with the name of the wrapped object.
-    internal let name: String
+    public let name: String
     
     /// A textual representation of the type of the wrapped object.
-    internal let type: String
+    public let type: String
+    
+    /// Creates a wrapped object that stores the given `RAObject` instance, directly.
+    public init(directReference object: RAObject) {
+        value = object
+        name = object.name
+        type = object.type
+    }
     
     /// Creates a wrapped object that stores the given `AnyObject` instance.
-    internal init(name: String, type: String, objectToWrap: AnyObject) {
+    public init(name: String, type: String, objectToWrap: AnyObject) {
         value = objectToWrap
         self.name = name
         self.type = type
