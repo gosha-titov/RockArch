@@ -3,37 +3,30 @@ open class RAInteractor: RAAbstractInteractor {
 }
 
 
-open class RAAbstractInteractor: RAComponent, RAModuleLifecycleDelegate, RAModuleDataSource {
+open class RAAbstractInteractor: RAComponentIntegratedIntoModule, RAModuleLifecycleDelegate, RAModuleDataSource {
     
     // MARK: - Public Properties
     
-    /// A name of the module to that this interactor belongs.
-    public final var name: String {
-        return _module?.name ?? "Unnamed"
-    }
+    /// A module to that this builder belongs.
+    public weak var module: RAModule?
     
-    /// A textual representation of the type of this interactor.
+    /// The string that has the "Interactor" value.
     public let type: String = "Interactor"
     
-    /// The current state of the module to that this interactor belongs.
-    public final var state: RAComponentState {
-        return _module?.state ?? .inactive
-    }
+    /// A boolean value that indicates whether a parent module should keep the module loaded after its completion.
+    public var moduleShouldBeLoadedIfCompleted = false
     
     
     // MARK: Internal Properties
-    
-    /// An internal module to that this interactor belongs.
-    internal weak var _module: RAModule?
     
     /// An internal router that is set by a module.
     internal weak var _router: RARouter?
     
     /// An internal view that is set by a module.
-    internal weak var _view: RAAbstractView?
+    internal weak var _view: (any RAView)?
     
     
-    // MARK: - Child Communication
+    // MARK: - Interactions with Relatives
     
     /// Called when a specific child interactor passes some outcome.
     ///
@@ -62,9 +55,9 @@ open class RAAbstractInteractor: RAComponent, RAModuleLifecycleDelegate, RAModul
     /// - Returns: `True` if the named value has been passed and a specific related interactor has received it; otherwise, `false`.
     @discardableResult
     public final func pass(value: Any, withLabel label: String, to receiver: RARelative) -> Bool {
-        guard let module = _module else {
+        guard let module else {
             let labelOrEmpty = label.isEmpty ? "" : " `\(label)`"
-            log("Couldn't pass the\(labelOrEmpty) value to the \(receiver) because this interactor doesn't belong to the module",
+            log("Couldn't pass the\(labelOrEmpty) value to the \(receiver) because this interactor doesn't belong to any module",
                 category: .moduleCommunication,
                 level: .error)
             return false
@@ -74,7 +67,7 @@ open class RAAbstractInteractor: RAComponent, RAModuleLifecycleDelegate, RAModul
     }
     
     
-    // MARK: - Related Casting
+    // MARK: - Casting Relatives
     
     /// Returns an instance of a parent interactor casted to the given interface.
     ///
@@ -86,7 +79,7 @@ open class RAAbstractInteractor: RAComponent, RAModuleLifecycleDelegate, RAModul
     ///         return parent(as: SomeInterface.self)
     ///     }
     ///
-    /// For example, this interactor belongs to the "Profile" module and you need to interact with the "Settings" parent interactor:
+    /// For example, this interactor belongs to the `Profile` module and you need to interact with the `Settings` parent interactor:
     ///
     ///     var parent: ProfileToSettingsInterface? {
     ///         return parent(as: ProfileToSettingsInterface.self)
@@ -95,7 +88,7 @@ open class RAAbstractInteractor: RAComponent, RAModuleLifecycleDelegate, RAModul
     /// - Note: You don't should storage this instance directly, because it can lead to implicit errors.
     /// - Returns: An instance of a parent interactor casted to the given interface; otherwise, `nil`.
     public final func parent<Interface>(as: Interface.Type) -> Interface? {
-        guard let module = _module else {
+        guard let module else {
             log("Couldn't take the parent interactor because this interactor doesn't belong to the module",
                 category: .moduleCommunication,
                 level: .error)
@@ -111,10 +104,10 @@ open class RAAbstractInteractor: RAComponent, RAModuleLifecycleDelegate, RAModul
     /// Then you define a computed property as in the example below:
     ///
     ///     var someChild: SomeInterface? {
-    ///         return child("some", as: SomeInterface.self)
+    ///         return child("Some", as: SomeInterface.self)
     ///     }
     ///
-    /// For example, this interactor belongs to the "Settings" module and you need to interact with the "Profile" child interactor:
+    /// For example, this interactor belongs to the `Settings` module and you need to interact with the `Profile` child interactor:
     ///
     ///     var profileModule: SettingsToProfileInterface? {
     ///         return child("Profile", as: SettingsToProfileInterface.self)
@@ -123,7 +116,7 @@ open class RAAbstractInteractor: RAComponent, RAModuleLifecycleDelegate, RAModul
     /// - Note: You don't should storage this instance directly, because it can lead to implicit errors.
     /// - Returns: An instance of a specific child interactor casted to the given interface; otherwise, `nil`.
     public final func child<Interface>(_ child: String, as: Interface.Type) -> Interface? {
-        guard let module = _module else {
+        guard let module else {
             log("Couldn't take the `\(child)` child interactor because this interactor doesn't belong to the module",
                 category: .moduleCommunication,
                 level: .error)
@@ -133,7 +126,7 @@ open class RAAbstractInteractor: RAComponent, RAModuleLifecycleDelegate, RAModul
     }
     
     
-    // MARK: - Child Data Source
+    // MARK: - Module Data Source
     
     /// Called when the module of this interactor loads a specific child module into memory.
     ///
@@ -288,15 +281,47 @@ open class RAAbstractInteractor: RAComponent, RAModuleLifecycleDelegate, RAModul
     open func moduleWillUnload() -> Void {}
     
     
+    // MARK: - Lifecycle
+    
+    /// Setups this interactor.
+    ///
+    /// This method is called when the module to which this interactor belongs is loaded into memory and assembled.
+    /// You usually override this method to perform additional initialization on your private properties.
+    /// You don't need to call the `super` method.
+    open func setup() -> Void {}
+    
+    /// Cleans this interactor.
+    ///
+    /// This method is called when the module to which this interactor belongs is about to be unloaded from memory and disassembled.
+    /// You usually override this method to clean your properties.
+    /// You don't need to call the `super` method.
+    open func clean() -> Void {}
+    
+    /// Called when the module is loaded into memory and assembled.
+    internal final func _setup() -> Void {
+        defer { setup() }
+        RALeakDetector.register(self)
+    }
+    
+    /// Called when the module is about to be unloaded from memory and disassembled.
+    internal final func _clean() -> Void {
+        clean()
+    }
+    
+    
     // MARK: - Internal Init
     
     /// Creates an interactor instance.
-    internal init() {
-        RALeakDetector.register(self)
-    }
+    fileprivate init() {}
     
 }
 
 
 /// An interactor that is marked as empty.
-internal final class RAEmptyInteractor: RAAbstractInteractor, RAEmpty {}
+internal final class RAEmptyInteractor: RAAbstractInteractor, RAEmpty {
+    
+    internal override init() {
+        super.init()
+    }
+    
+}
