@@ -1,30 +1,46 @@
-open class RARouter: RAComponent, RAModuleBelongable {
+open class RARouter: RAComponentIntegratedIntoModule {
     
     // MARK: - Properties
     
-    /// A name of the module to that this router belongs.
-    public final var name: String {
-        return _module?.name ?? "Unnamed"
-    }
+    /// A module to that this router belongs.
+    public weak var module: RAModule?
     
-    /// A textual representation of the type of this router.
+    /// The string that has the "Router" value.
     public let type: String = "Router"
     
-    /// The current state of the module to that this router belongs.
-    public final var state: RAComponentState {
-        return _module?.state ?? .inactive
+    
+    // MARK: - Lifecycle
+    
+    /// Setups this router.
+    ///
+    /// This method is called when the module to which this router belongs is loaded into memory and assembled.
+    /// You usually override this method to perform additional initialization on your private properties.
+    /// You don't need to call the `super` method.
+    open func setup() -> Void {}
+    
+    /// Cleans this router.
+    ///
+    /// This method is called when the module to which this router belongs is about to be unloaded from memory and disassembled.
+    /// You usually override this method to clean your properties.
+    /// You don't need to call the `super` method.
+    open func clean() -> Void {}
+    
+    /// Called when the module is loaded into memory and assembled.
+    internal final func _setup() -> Void {
+        defer { setup() }
+        RALeakDetector.register(self)
     }
     
-    /// An internal module to that this router belongs.
-    internal weak var _module: RAModule?
+    /// Called when the module is about to be unloaded from memory and disassembled.
+    internal final func _clean() -> Void {
+        clean()
+    }
     
     
     // MARK: - Public Init
     
     /// Creates a router instance.
-    public init() {
-        RALeakDetector.register(self)
-    }
+    public init() {}
     
 }
 
