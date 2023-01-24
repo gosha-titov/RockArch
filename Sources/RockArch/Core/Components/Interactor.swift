@@ -67,6 +67,46 @@ open class RAAbstractInteractor: RAComponentIntegratedIntoModule, RAModuleLifecy
     }
     
     
+    // MARK: - Loading and Unloading Relatives
+    
+    /// Preloads a specific child into memory by the given name if it's possible.
+    ///
+    /// This method is used when you need to load the child module before it can be shown.
+    ///
+    /// For example, you develop an online store that also delivers goods.
+    /// So you can preload the `Orders` module to start fetching data of user orders before the user goes to the page with them.
+    ///
+    /// - Returns: `True` if the child module has been loaded into memory; otherwise, `false`.
+    @discardableResult
+    public final func preload(child childName: String) -> Bool {
+        guard let module else {
+            log("Couldn't preload the `\(childName)` child module because this interactor doesn't belong to any module",
+                category: .moduleManagement,
+                level: .error)
+            return false
+        }
+        return module.preload(by: childName)
+    }
+    
+    /// Unloads a specific child from memory by the given name if it's possible.
+    ///
+    /// This method is used when a child module wasn't unloaded after its complition.
+    /// It can only happen when the `moduleShouldBeLoadedIfCompleted` property of this child interaction is `true`.
+    ///
+    /// - Note: You cannot unload a child module that is currently active or suspended.
+    /// - Returns: `True` if the child module has been unloaded from memory; otherwise, `false`.
+    @discardableResult
+    public final func unload(child childName: String) -> Bool {
+        guard let module else {
+            log("Couldn't unload the `\(childName)` child module because this interactor doesn't belong to any module",
+                category: .moduleManagement,
+                level: .error)
+            return false
+        }
+        return module.unload(by: childName)
+    }
+    
+    
     // MARK: - Casting Relatives
     
     /// Returns an instance of a parent interactor casted to the given interface.
