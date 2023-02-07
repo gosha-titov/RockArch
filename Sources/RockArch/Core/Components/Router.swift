@@ -11,7 +11,7 @@ open class RARouter: RAComponentIntegratedIntoModule {
     public let type: String = "Router"
     
     /// The array of route actions that are mainly used by deep links.
-    public private(set) var routeActions = [String: RARouteAction]()
+    public private(set) var defaultRouteActions = [String: RARouteAction]()
     
     
     // MARK: Internal Properties
@@ -41,12 +41,56 @@ open class RARouter: RAComponentIntegratedIntoModule {
     
     // MARK: - Routing
     
+    /// Presents a view controller of a specific child module modally.
+    ///
+    /// You can present a child module only in two cases: when this module has a view that is a view controller or when there's a view controller in this flow.
+    /// When you do this, you load, start and display the child module.
+    ///
+    /// You can also present the child module that has no view. In this case, you just load and start it.
+    ///
+    /// - Parameter childName: The name of a module to load, start and present.
+    /// - Parameter animated: Specify `true` to animate the transition or `false` if you do not want the transition to be animated.
+    /// You might specify `false` if you are setting up the navigation controller at launch time. The default value is `true.`
+    /// - Parameter completion: The block to execute after the presentation finishes.
+    /// This block has no return value and takes no parameters. The default value is `true.`
+    ///
+    /// - Returns: `True` if the child module has been presented; otherwise, `false`.
+    @discardableResult
+    public final func presentChildModule(byName childName: String, animated: Bool = true, completion: (() -> Void)? = nil) -> Bool {
+        guard let module else {
+            log("Couldn't present the \(childName) child module because this router doesn't belong to any module",
+                category: .moduleRouting,
+                level: .error)
+            return false
+        }
+        guard let viewController = viewController ?? previousViewController else {
+            log("Couldn't present the \(childName) child module because this router doesn't have any view controller",
+                category: .moduleRouting,
+                level: .error)
+            return false
+        }
+        guard module.invokeChildModule(byName: childName) else {
+            log("Couldn't present the \(childName) child module because it cannot be invoked",
+                category: .moduleRouting,
+                level: .error)
+            return false
+        }
+        guard let child = module.router(of: .child(childName)) else {
+            // Will never happen because a child module is definitely loaded
+            return false
+        }
+        if let childViewController = child.viewController {
+            viewController.present(childViewController, animated: animated, completion: completion)
+        }
+        return true
+    }
+    
     /// Pushes a view controller of a specific child module onto a navigation stack.
     ///
     /// You can push a child module only in two cases: when this module was pushed or when this module has a view that is a navigation controller.
-    /// When you do this, you load, start and show the child module.
+    /// When you do this, you load, start and display the child module.
     ///
-    /// You can also push the child module that has no view. In this case, you just share a navigation controller to it.
+    /// You can also push the child module that has no view. In this case, you just load and start it, and share a navigation controller to it.
     ///
     /// - Note: When the **A** module pushes the **B** child module, **A** shares a navigation controller to **B**.
     /// That is, **B** is also able to push its child modules.
@@ -55,7 +99,7 @@ open class RARouter: RAComponentIntegratedIntoModule {
     /// - Parameter animated: Specify `true` to animate the transition or `false` if you do not want the transition to be animated.
     /// You might specify `false` if you are setting up the navigation controller at launch time. The default value is `true.`
     /// - Parameter completion: The block to execute after the pushing finishes.
-    /// This block has no return value and takes no parameters. You may specify `nil` for this parameter.
+    /// This block has no return value and takes no parameters. The default value is `true.`
     ///
     /// - Returns: `True` if the child module has been pushed; otherwise, `false`.
     @discardableResult
@@ -72,7 +116,7 @@ open class RARouter: RAComponentIntegratedIntoModule {
                 level: .error)
             return false
         }
-        guard module.invoke(by: childName) else {
+        guard module.invokeChildModule(byName: childName) else {
             log("Couldn't push the \(childName) child module because it cannot be invoked",
                 category: .moduleRouting,
                 level: .error)
@@ -83,7 +127,7 @@ open class RARouter: RAComponentIntegratedIntoModule {
             return false
         }
         if let childViewController = child.viewController {
-            navigationController.push(childViewController, animated: animated, completion: completion ?? {})
+            navigationController.push(childViewController, animated: animated, completion: completion)
         }
         child.sharedNavigationController = navigationController
         return true
@@ -93,23 +137,23 @@ open class RARouter: RAComponentIntegratedIntoModule {
     // MARK: - Route Action Management
     
     /// Adds the given route action for a specific child.
-    public final func addRouteAction(_ routeAction: RARouteAction, forChild childName: String) -> Void {
-        if routeActions[childName].hasValue {
+    public final func addDefaultRouteAction(_ routeAction: RARouteAction, forChild childName: String) -> Void {
+        if defaultRouteActions[childName].hasValue {
             log("Replaced an existing route action for the `\(childName)` child module",
                 category: .moduleRouting,
                 level: .warning)
         }
-        routeActions[childName] = routeAction
+        defaultRouteActions[childName] = routeAction
     }
     
     /// Removes a route action for a specific child.
-    public final func removeRouteAction(forChild childName: String) -> Void {
-        if routeActions[childName].isNil {
+    public final func removeDefaultRouteAction(forChild childName: String) -> Void {
+        if defaultRouteActions[childName].isNil {
             log("Attempt to remove a non-existent route action for the `\(childName)` child module",
                 category: .moduleRouting,
                 level: .warning)
         } else {
-            routeActions.removeValue(forKey: childName)
+            defaultRouteActions.removeValue(forKey: childName)
         }
     }
     
