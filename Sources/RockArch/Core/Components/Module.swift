@@ -11,7 +11,7 @@ open class RAModule: RAComponent {
     /// A string associated with the name of this module.
     public let name: String
     
-    /// A textual representation of the type of this module.
+    /// The string that has the "Module" value.
     public let type: String = "Module"
     
     /// The current state of this module.
@@ -29,8 +29,10 @@ open class RAModule: RAComponent {
     /// A boolean value that indicates whether this module is loaded into the parent memory.
     public private(set) var isLoaded: Bool = false
     
-    /// A boolean value that indicates whether a parent module should keep this module loaded after its completion (when it becomes inactive).
-    public var shouldKeepLoadedIfCompleted = false
+    /// A boolean value that indicates whether a parent module should keep this module loaded when it becomes inactive.
+    public final var shouldRemainLoadedIfCompleted: Bool {
+        return interactor.moduleShouldRemainLoadedIfCompleted
+    }
     
     
     // MARK: Internal Properties
@@ -63,7 +65,7 @@ open class RAModule: RAComponent {
     private var children = [String: RAModule]()
     
     
-    // MARK: - Child Communication
+    // MARK: - Child Interacting
     
     /// Sends a signal to a specific receiver if possible.
     internal final func send(_ signal: RASignal, to receiver: RARelative) -> Bool {
@@ -74,7 +76,7 @@ open class RAModule: RAComponent {
         case .child(let childName):
             guard let child = children[childName] else {
                 log("Couldn't send the \(signal) to the non-existent `\(childName)` child module",
-                    category: .moduleCommunication,
+                    category: .moduleInteracting,
                     level: .error)
                 return false
             }
@@ -84,7 +86,7 @@ open class RAModule: RAComponent {
         case .parent:
             guard let parent else {
                 log("Couldn't send the \(signal) to the non-existent parent module",
-                    category: .moduleCommunication,
+                    category: .moduleInteracting,
                     level: .error)
                 return false
             }
@@ -92,7 +94,7 @@ open class RAModule: RAComponent {
             receivingModule = parent
             sender = .child(name)
         }
-        log(message, category: .moduleCommunication)
+        log(message, category: .moduleInteracting)
         return receivingModule.receive(signal, from: sender)
     }
     
@@ -103,7 +105,7 @@ open class RAModule: RAComponent {
         case .child(let childName):
             guard children.hasKey(childName) else {
                 log("Couldn't receive the \(signal) from the non-existent `\(childName)` child module",
-                    category: .moduleCommunication,
+                    category: .moduleInteracting,
                     level: .error)
                 return false
             }
@@ -112,14 +114,14 @@ open class RAModule: RAComponent {
         case .parent:
             guard let parent else {
                 log("Couldn't receive the \(signal) from the non-existent parent module",
-                    category: .moduleCommunication,
+                    category: .moduleInteracting,
                     level: .error)
                 return false
             }
             interactor.parent(didPassValue: signal.value, withLabel: signal.label)
             message = "Received the \(signal) from the `\(parent.name)` parent module"
         }
-        log(message, category: .moduleCommunication)
+        log(message, category: .moduleInteracting)
         return true
     }
     
@@ -127,19 +129,19 @@ open class RAModule: RAComponent {
     private func receiveOutcome(from child: RAModule) -> Void {
         if let outcome = child.lifecycleDelegate.moduleShouldStop() {
             log("Recieved an outcome from the `\(child.name)` child module",
-                category: .moduleCommunication)
+                category: .moduleInteracting)
             interactor.child(child.name, didPassOutcome: outcome)
         }
     }
     
     /// Returns an interactor of a specific relative if possible.
-    internal func interactor(of relative: RARelative) -> RAAbstractInteractor? {
+    internal final func interactor(of relative: RARelative) -> RAAbstractInteractor? {
         let relatedInteractor: RAAbstractInteractor
         switch relative {
         case .child(let childName):
             guard let child = children[childName] else {
                 log("Couldn't take an interactor from the non-existent `\(childName)` child module",
-                    category: .moduleCommunication,
+                    category: .moduleInteracting,
                     level: .error)
                 return nil
             }
@@ -147,13 +149,37 @@ open class RAModule: RAComponent {
         case .parent:
             guard let parent else {
                 log("Couldn't take an interactor from the non-existent parent module",
-                    category: .moduleCommunication,
+                    category: .moduleInteracting,
                     level: .error)
                 return nil
             }
             relatedInteractor = parent.interactor
         }
         return relatedInteractor
+    }
+    
+    /// Returns a router of a specific relative if possible.
+    internal final func router(of relative: RARelative) -> RARouter? {
+        let relatedRouter: RARouter
+        switch relative {
+        case .child(let childName):
+            guard let child = children[childName] else {
+                log("Couldn't take a router from the non-existent `\(childName)` child module",
+                    category: .moduleInteracting,
+                    level: .error)
+                return nil
+            }
+            relatedRouter = child.router
+        case .parent:
+            guard let parent else {
+                log("Couldn't take a router from the non-existent parent module",
+                    category: .moduleInteracting,
+                    level: .error)
+                return nil
+            }
+            relatedRouter = parent.router
+        }
+        return relatedRouter
     }
     
     
@@ -164,8 +190,8 @@ open class RAModule: RAComponent {
     /// This method transfers control to a specific child module, if possible.
     /// That is, this module becomes suspended, and a child module becomes active.
     ///
-    /// - Returns: `True` if control has been transferred to a child module; otherwise, `False`.
-    internal final func invoke(by childName: String) -> Bool {
+    /// - Returns: `True` if control has been transferred to a child module; otherwise, `false`.
+    internal final func invokeChildModule(byName childName: String) -> Bool {
         guard isLoaded else {
             log("Couldn't invoke the `\(childName)` child module because this module is not loaded into memory",
                 category: .moduleManagement,
@@ -182,7 +208,7 @@ open class RAModule: RAComponent {
         if let existingChild = children[childName] {
             child = existingChild
         } else {
-            guard let builtChild = build(by: childName) else {
+            guard let builtChild = buildChildModule(byName: childName) else {
                 log("Couldn't invoke the `\(childName)` child module because it cannot be built",
                     category: .moduleManagement,
                     level: .error)
@@ -204,8 +230,8 @@ open class RAModule: RAComponent {
     /// This method takes control away from a specific child module, if possible.
     /// That is, this module becomes resumed, and a child module becomes suspended or inactive.
     ///
-    /// - Returns: `True` if control has been taken away from a child module; otherwise, `False`.
-    internal final func revoke(by childName: String) -> Bool {
+    /// - Returns: `True` if control has been taken away from a child module; otherwise, `false`.
+    internal final func revokeChildModule(byName childName: String) -> Bool {
         guard isLoaded else {
             log("Couldn't revoke the `\(childName)` child module because this module is not loaded into memory",
                 category: .moduleManagement,
@@ -291,7 +317,7 @@ open class RAModule: RAComponent {
             lifecycleDelegate.moduleDidResume()
         }
         child.lifecycleDelegate.moduleDidStop()
-        if child.shouldKeepLoadedIfCompleted == false {
+        if child.shouldRemainLoadedIfCompleted == false {
             unload(child)
         }
         return true
@@ -308,9 +334,9 @@ open class RAModule: RAComponent {
     
     // MARK: Loading and Unloading Children
     
-    /// Preloads a specific child into memory if possible.
-    /// - Returns: `True` if the child module has been loaded into memory; otherwise, `False`.
-    internal final func preload(by childName: String) -> Bool {
+    /// Preloads a specific child module into memory if possible.
+    /// - Returns: `True` if the child module has been loaded into memory; otherwise, `false`.
+    internal final func preloadChildModule(byName childName: String) -> Bool {
         guard isLoaded else {
             log("Couldn't preload the `\(childName)` child module because this module is not loaded into memory",
                 category: .moduleManagement,
@@ -323,7 +349,7 @@ open class RAModule: RAComponent {
                 level: .warning)
             return false
         }
-        guard let builtChild = build(by: childName) else {
+        guard let builtChild = buildChildModule(byName: childName) else {
             log("Couldn't preload the `\(childName)` child module because it cannot be built",
                 category: .moduleManagement,
                 level: .error)
@@ -332,9 +358,9 @@ open class RAModule: RAComponent {
         return load(builtChild)
     }
     
-    /// Unloads a specific child from memory if possible.
-    /// - Returns: `True` if the child module has been unloaded from memory; otherwise, `False`.
-    internal final func unload(by childName: String) -> Bool {
+    /// Unloads a specific child module from memory if possible.
+    /// - Returns: `True` if the child module has been unloaded from memory; otherwise, `false`.
+    internal final func unloadChildModule(byName childName: String) -> Bool {
         guard let child = children[childName] else {
             log("Couldn't unload the `\(childName)` child module because there's no loaded module with this name",
                 category: .moduleManagement,
@@ -400,9 +426,9 @@ open class RAModule: RAComponent {
     // MARK: Building Children
     
     /// Builds a specific child module by its name if possible.
-    private func build(by childName: String) -> RAModule? {
+    private func buildChildModule(byName childName: String) -> RAModule? {
         guard let builder else {
-            log("Couldn't build the `\(childName)` child module because this module doesn't have a builder.",
+            log("Couldn't build the `\(childName)` child module because this module doesn't have a builder",
                 category: .moduleManagement,
                 level: .error)
             return nil
@@ -416,6 +442,7 @@ open class RAModule: RAComponent {
     
     /// Assembles this module by connecting its components to each other and to itself.
     private func assemble() -> Void {
+        router.viewController = view
         view?._interactor = interactor
         interactor._router = router
         interactor._view = view
@@ -426,6 +453,7 @@ open class RAModule: RAComponent {
     
     /// Disassembles this module by disconnecting components from each other and from itself.
     private func disassemble() -> Void {
+        router.viewController = nil
         view?._interactor = nil
         interactor._router = nil
         interactor._view = nil
@@ -436,18 +464,18 @@ open class RAModule: RAComponent {
     
     /// Setups this module so that it's ready to work.
     private func setup() -> Void {
-        builder?.setup()
-        router.setup()
-        view?.setup()
-        interactor.setup()
+        builder?._setup()
+        router._setup()
+        view?._setup()
+        interactor._setup()
     }
     
     /// Cleans this module so that it's ready to be deinited.
     private func clean() -> Void {
-        interactor.clean()
-        view?.clean()
-        router.clean()
-        builder?.clean()
+        interactor._clean()
+        view?._clean()
+        router._clean()
+        builder?._clean()
     }
     
     
