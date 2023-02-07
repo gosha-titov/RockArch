@@ -11,7 +11,7 @@ open class RARouter: RAComponentIntegratedIntoModule {
     public let type: String = "Router"
     
     /// The array of route actions that are mainly used by deep links.
-    public private(set) var defaultRouteActions = [String: RARouteAction]()
+    public private(set) var defaultTransitions = [String: RATransition]()
     
     
     // MARK: Internal Properties
@@ -134,26 +134,26 @@ open class RARouter: RAComponentIntegratedIntoModule {
     }
     
     
-    // MARK: - Route Action Management
+    // MARK: - Transition Management
     
-    /// Adds the given route action for a specific child.
-    public final func addDefaultRouteAction(_ routeAction: RARouteAction, forChild childName: String) -> Void {
-        if defaultRouteActions[childName].hasValue {
-            log("Replaced an existing route action for the `\(childName)` child module",
+    /// Adds the given transition for a specific child.
+    public final func addDefaultTransition(_ transition: RATransition, forChild childName: String) -> Void {
+        if defaultTransitions[childName].hasValue {
+            log("Replaced an existing transition for the `\(childName)` child module",
                 category: .moduleRouting,
                 level: .warning)
         }
-        defaultRouteActions[childName] = routeAction
+        defaultTransitions[childName] = transition
     }
     
-    /// Removes a route action for a specific child.
-    public final func removeDefaultRouteAction(forChild childName: String) -> Void {
-        if defaultRouteActions[childName].isNil {
-            log("Attempt to remove a non-existent route action for the `\(childName)` child module",
+    /// Removes a transition for a specific child.
+    public final func removeDefaultTransition(forChild childName: String) -> Void {
+        if defaultTransitions[childName].isNil {
+            log("Attempt to remove a non-existent transition for the `\(childName)` child module",
                 category: .moduleRouting,
                 level: .warning)
         } else {
-            defaultRouteActions.removeValue(forKey: childName)
+            defaultTransitions.removeValue(forKey: childName)
         }
     }
     
@@ -194,11 +194,11 @@ open class RARouter: RAComponentIntegratedIntoModule {
 }
 
 
-public enum RARouteAction {
-    case push
-    case present
-    case select
-    case jump
+public enum RATransition {
+    case presenting
+    case pushing
+    case selecting
+    case jumping
     case custom(RAAnimation)
 }
 
