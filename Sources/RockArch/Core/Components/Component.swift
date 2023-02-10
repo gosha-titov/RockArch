@@ -8,12 +8,6 @@ public protocol RAComponentIntegratedIntoModule: RAComponent {
     /// A module to that this component belongs.
     /*weak*/ var module: RAModule? { get set }
     
-    /// Setups this component after the module is loaded into memory and assembled.
-    func setup()
-    
-    /// Cleans this component when the module is about to be unloaded from memory and disassembled.
-    func clean()
-    
 }
 
 public extension RAComponentIntegratedIntoModule {
@@ -37,6 +31,12 @@ public protocol RAComponent: RAObject, RASimplifiedLoggable {
     
     /// The current state of this component.
     var state: RAComponentState { get }
+    
+    /// Setups this component after it is loaded into memory.
+    func setup()
+    
+    /// Cleans this component when it is about to be unloaded from memory.
+    func clean()
     
 }
 
