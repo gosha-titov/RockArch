@@ -1,3 +1,75 @@
+/// A storage that weakly stores specific objects.
+///
+/// Weak storages are used when you need to extend an existent type with a stored property that weakly references to an object.
+///
+///     // Define a new class that subclasses the `RAWeakStorage` class:
+///     final class DependencyStorage: RAWeakStorage<Dependency> {
+///
+///         static let shared = DependencyStorage()
+///
+///         private init() {
+///             super.init(name: "WeakDependency")
+///         }
+///
+///     }
+///
+///
+///     // Then extend an existent type using this storage:
+///     extension Object {
+///
+///         var dependency: Dependency? {
+///             get {
+///                 let storage = DependencyStorage.shared
+///                 return storage[debugDescription]
+///             }
+///             set {
+///                 let storage = DependencyStorage.shared
+///                 storage[debugDescription] = newValue
+///             }
+///         }
+///
+///     }
+///
+/// Now this above property has the same behavior as the weak reference:
+///
+///     final class Object {
+///
+///         weak var dependency: Dependency?
+///
+///     }
+///
+open class RAWeakStorage<StoredObject>: RAAbstractStorage<StoredObject> where StoredObject: AnyObject {
+
+    /// The array that consists of elements that weakly reference some objects.
+    private var weakObjects = [String: RAWeakObject]()
+    
+    public final override func value(forKey key: String) -> StoredObject? {
+        return weakObjects[key]?.reference as? StoredObject
+    }
+    
+    public final override func removeValue(forKey key: String) -> StoredObject? {
+        let removedObject = weakObjects.removeValue(forKey: key)
+        return removedObject?.reference as? StoredObject
+    }
+    
+    public final override func updateValue(_ object: StoredObject, forKey key: String) -> Void {
+        let weakObject: RAWeakObject
+        if let object = object as? RAAnyObject {
+            weakObject = .init(reflecting: object)
+        } else {
+            weakObject = .init(referencing: object)
+        }
+        weakObjects[key] = weakObject
+    }
+    
+    public override init(name: String = "Weak") {
+        super.init(name: name)
+    }
+
+}
+
+
+
 /// An abstract storage that has a basic behavior for other ones.
 open class RAAbstractStorage<Stored>: RAStorage {
     
