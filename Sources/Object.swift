@@ -40,6 +40,48 @@ public struct RAWeakObject: RAObject {
 
 
 
+/// The object that strongly references a specific `AnyObject` instance.
+///
+/// Strong objects are mainly used to endow the `AnyObject` instance with the behavior of a `RAObject`.
+public struct RAStrongObject: RAObject {
+    
+    /// The strong reference a specific object.
+    public let reference: AnyObject
+    
+    /// A string associated with the name of the wrapped object.
+    public let name: String
+    
+    /// A textual representation of the type of the wrapped object.
+    public let type: String
+    
+    /// Creates an object that strongly references the given `RAAnyObject` instance and has the same name and type as it.
+    ///
+    /// For example:
+    ///
+    ///     object.name // "Main"
+    ///     object.type // "Module"
+    ///
+    ///     let strongObject = RAStrongObject(reflecting: object)
+    ///     strongObject.name // "Main"
+    ///     strongObject.type // "Module"
+    ///
+    public init(reflecting object: RAAnyObject) {
+        name = object.name
+        type = object.type
+        reference = object
+    }
+    
+    /// Creates an object that strongly references the given `AnyObject` instance.
+    public init(name: String? = nil, type: String? = nil, referencing object: AnyObject) {
+        self.name = name.isNilOrEmpty ? "Unnamed"   : name!
+        self.type = type.isNilOrEmpty ? "AnyObject" : type!
+        reference = object
+    }
+    
+}
+
+
+
 /// A named typed reference-type object that has a description.
 ///
 /// Classes that conform to the `RAAnyObject` protocol can be identified by the `name` and `type` properties:
