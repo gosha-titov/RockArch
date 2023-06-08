@@ -70,6 +70,78 @@ open class RAWeakStorage<StoredObject>: RAAbstractStorage<StoredObject> where St
 
 
 
+/// A storage that strongly stores specific objects.
+///
+/// Strong storages are used when you need to extend an existent type with a stored property that strongly references to an object.
+///
+///     // Define a new class that subclasses the `RAStrongStorage` class:
+///     final class DependencyStorage: RAStrongStorage<Dependency> {
+///
+///         static let shared = DependencyStorage()
+///
+///         private init() {
+///             super.init(name: "StrongDependency")
+///         }
+///
+///     }
+///
+///
+///     // Then extend an existent type using this storage:
+///     extension Object {
+///
+///         var dependency: Dependency? {
+///             get {
+///                 let storage = DependencyStorage.shared
+///                 return storage[debugDescription]
+///             }
+///             set {
+///                 let storage = DependencyStorage.shared
+///                 storage[debugDescription] = newValue
+///             }
+///         }
+///
+///     }
+///
+/// Now this above property has the same behavior as the strong reference:
+///
+///     final class Object {
+///
+///         var dependency: Dependency?
+///
+///     }
+///
+open class RAStrongStorage<StoredObject>: RAAbstractStorage<StoredObject> where StoredObject: AnyObject {
+    
+    /// The array that consists of elements that strongly reference some objects.
+    private var strongObjects = [String: RAStrongObject]()
+    
+    public final override func value(forKey key: String) -> StoredObject? {
+        return strongObjects[key]?.reference as? StoredObject
+    }
+    
+    public final override func removeValue(forKey key: String) -> StoredObject? {
+        let removedObject = strongObjects[key]?.reference
+        return removedObject as? StoredObject
+    }
+
+    public final override func updateValue(_ object: StoredObject, forKey key: String) -> Void {
+        let strongObject: RAStrongObject
+        if let object = object as? RAAnyObject {
+            strongObject = .init(reflecting: object)
+        } else {
+            strongObject = .init(referencing: object)
+        }
+        strongObjects[key] = strongObject
+    }
+
+    public override init(name: String = "Strong") {
+        super.init(name: name)
+    }
+
+}
+
+
+
 /// An abstract storage that has a basic behavior for other ones.
 open class RAAbstractStorage<Stored>: RAStorage {
     
