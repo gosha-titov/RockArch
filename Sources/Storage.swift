@@ -62,6 +62,9 @@ open class RAWeakStorage<StoredObject>: RAAbstractStorage<StoredObject> where St
         weakObjects[key] = weakObject
     }
     
+    /// Creates a named storage instance.
+    ///
+    /// - Parameter name: A name of this storage. You usually specify the string concatenating the name of a stored object with the "Weak" prefix, as in the following example: "WeakDependency".
     public override init(name: String = "Weak") {
         super.init(name: name)
     }
@@ -133,7 +136,10 @@ open class RAStrongStorage<StoredObject>: RAAbstractStorage<StoredObject> where 
         }
         strongObjects[key] = strongObject
     }
-
+    
+    /// Creates a named storage instance.
+    ///
+    /// - Parameter name: A name of this storage. You usually specify the string concatenating the name of a stored object with the "Strong" prefix, as in the following example: "StrongDependency".
     public override init(name: String = "Strong") {
         super.init(name: name)
     }
