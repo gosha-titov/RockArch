@@ -1,3 +1,15 @@
+/// A named typed reference-type object that has a description.
+///
+/// Classes that conform to the `RAAnyObject` protocol can be identified by the `name` and `type` properties:
+///
+///     object.name // "Appearance"
+///     object.type // "Module"
+///
+/// All key classes conform to the `RAAnyObject` protocol.
+public protocol RAAnyObject: RAObject, AnyObject {}
+
+
+
 /// A named typed object that has a description.
 ///
 /// Types that conform to the `RAObject` protocol can be identified by the `name` and `type` properties:
