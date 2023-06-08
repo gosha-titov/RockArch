@@ -82,15 +82,18 @@ public struct RAStrongObject: RAObject {
 
 
 
-/// A named typed reference-type object that has a description.
+/// A named typed class object that has a description.
 ///
-/// Classes that conform to the `RAAnyObject` protocol can be identified by the `name` and `type` properties:
+/// `RAAnyObject` is a type alias for the `RAObject` and `AnyObject` protocols. Classes that conform to it can be identified by the `name` and `type` properties:
 ///
 ///     object.name // "Appearance"
 ///     object.type // "Module"
 ///
-/// All key classes conform to the `RAAnyObject` protocol.
-public protocol RAAnyObject: RAObject, AnyObject {}
+///     print(object)
+///     // Prints "Appearance-Module" by default
+///
+/// All key classes conform to the `RAAnyObject` type alias.
+public typealias RAAnyObject = RAObject & AnyObject
 
 
 
@@ -100,6 +103,9 @@ public protocol RAAnyObject: RAObject, AnyObject {}
 ///
 ///     object.name // "Settings"
 ///     object.type // "Interactor"
+///
+///     print(object)
+///     // Prints "Settings-Interactor" by default
 ///
 /// All key types conform to the `RAObject` protocol.
 public protocol RAObject: CustomStringConvertible {
