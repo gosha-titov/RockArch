@@ -1,4 +1,66 @@
+import Foundation
 import os
+
+/// A personalized log message that also contains a context within which it's created.
+///
+/// You almost never create a log message directly. You only filter and process it inside a logger.
+///
+/// The log message looks like in the following example:
+///
+///     message.author        // "Menu-Interactor"
+///     message.text          // "User gained 97 points out of 100"
+///     message.category      // "User"
+///     message.level         // .info
+///     message.info.file.id  // "MindGame/MenuInteractor.swift"
+///     message.info.function // "child(_:didPassOutcome:)"
+///     message.info.line     // 132
+///     message.timestamp     // "2023-06-09 14:05:43 +0000"
+///     message.uuid          // "D24A7E1C-B5D9-4F53-B96F-C8B248172DF8"
+///
+public struct RALogMessage: Equatable {
+    
+    /// The string that describes an author of this log message.
+    public let author: String
+    
+    /// The text of this log message.
+    public let text: String
+    
+    /// The string that describes a category of this log message.
+    public let category: String
+    
+    /// The level associated how important this log message is.
+    public let level: RALogLevel
+    
+    /// The information about a file, function and line this instance originates from.
+    public let info: RAInfo
+    
+    /// The time when this log message was created.
+    public let timestamp: Date
+    
+    /// The universally unique value of this log message.
+    public let uuid: UUID
+    
+    /// Creates a log message instance.
+    /// - Parameter author:    The string that describes an author of this log message.
+    /// - Parameter text:      The text of this log message.
+    /// - Parameter category:  The string that describes a category of this log message.
+    /// - Parameter level:     The level associated how important this log message is.
+    /// - Parameter info:      The information about a file, function and line this instance originates from.
+    /// - Parameter timestamp: The time when this log message was created.
+    /// - Parameter uuid:      The universally unique value of this log message.
+    public init(author: String, text: String, category: String, level: RALogLevel, info: RAInfo, timestamp: Date = .init(), uuid: UUID = .init()) {
+        self.author = author
+        self.text = text
+        self.category = category
+        self.level = level
+        self.info = info
+        self.timestamp = timestamp
+        self.uuid = uuid
+    }
+    
+}
+
+
 
 /// A level associated how important a log message is.
 ///
@@ -64,6 +126,23 @@ public enum RALogLevel: String, CaseIterable, Comparable {
         case .fatal:   return .fault
         }
     }
+    
+}
+
+
+
+// MARK: - Extensions
+
+extension RALogMessage {
+    
+    public static func == (lhs: RALogMessage, rhs: RALogMessage) -> Bool {
+        return lhs.author == rhs.author && lhs.text == rhs.text && lhs.category == rhs.category && lhs.level == rhs.level
+            && lhs.info == rhs.info && lhs.timestamp == rhs.timestamp && lhs.uuid == rhs.uuid
+    }
+    
+}
+
+extension RALogLevel {
     
     public static func < (lhs: RALogLevel, rhs: RALogLevel) -> Bool {
         return lhs.integerValue < rhs.integerValue
