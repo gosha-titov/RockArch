@@ -23,7 +23,7 @@ import Foundation
 ///     }
 ///
 /// The `RAInfo` instance is mainly used in log messages.
-public struct RAInfo: CustomStringConvertible {
+public struct RAInfo: CustomStringConvertible, Equatable {
     
     /// The information about a file.
     public let file: RAFileInfo
@@ -74,7 +74,7 @@ public struct RAInfo: CustomStringConvertible {
 ///     }
 ///
 /// The `RAFileInfo` instance is mainly used in log messages.
-public struct RAFileInfo: CustomStringConvertible {
+public struct RAFileInfo: CustomStringConvertible, Equatable {
     
     /// The name of the module and file. It's the same as `#fileID`.
     public let id: String
@@ -103,6 +103,26 @@ public struct RAFileInfo: CustomStringConvertible {
         
         // Extract file name from fileID
         name = URL(fileURLWithPath: fileID).deletingPathExtension().lastPathComponent
+    }
+    
+}
+
+
+
+// MARK: - Extensions
+
+extension RAInfo {
+    
+    public static func == (lhs: RAInfo, rhs: RAInfo) -> Bool {
+        return lhs.file == rhs.file && lhs.function == rhs.function && lhs.line == rhs.line
+    }
+    
+}
+
+extension RAFileInfo {
+    
+    public static func == (lhs: RAFileInfo, rhs: RAFileInfo) -> Bool {
+        return lhs.id == rhs.id
     }
     
 }
