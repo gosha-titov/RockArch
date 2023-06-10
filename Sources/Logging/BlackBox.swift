@@ -1,6 +1,26 @@
 import Foundation
 
 /// The black box that handles all incoming messages by passing them to its loggers.
+///
+/// The black box is the main part of logging.
+/// It receives all incoming global messages, handles them in its own queue and passing them to its loggers.
+///
+/// The most basic usage of the black box is to call the static method corresponding to a log level of a message:
+///
+///     RABlackBox.error(
+///         "No internet connection",
+///         author: "Weather-Service",
+///         category: "Network"
+///     )
+///
+/// If you need to customize the handling of log messages then set a new value for the `current` property:
+///
+///     RABlackBox.current = {
+///         let loggerA = LoggerA()
+///         let loggerB = LoggerB()
+///         return .init(name: "CustomAB", loggers: [loggerA, loggerB])
+///     }()
+///
 open class RABlackBox: RAAnyObject {
     
     /// The black box that is currently in use.
@@ -11,20 +31,18 @@ open class RABlackBox: RAAnyObject {
     
     /// The default black box that uses the console logger.
     public static let console: RABlackBox = {
-        let consoleLogger = RAConsoleLogger()
-        return RABlackBox(name: "Console", loggers: [consoleLogger])
+        return .init(name: "Console", loggers: [RAConsoleLogger()])
     }()
     
     /// The default black box that uses the os logger.
     public static let os: RABlackBox = {
-        let osLogger = RAOSLogger()
-        return RABlackBox(name: "OS", loggers: [osLogger])
+        return .init(name: "OS", loggers: [RAOSLogger()])
     }()
     
     /// The default serial queue in which logging performs.
     ///
     /// The queue has the `.background` quality-of-service.
-    public static let queue = DispatchQueue(label: "com.rockarch.blackbox-builtin", qos: .background)
+    public static let queue = DispatchQueue(label: "com.rockarch.blackbox-default", qos: .background)
     
     /// A string associated with the name of this black box.
     public let name: String
