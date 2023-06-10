@@ -84,7 +84,7 @@ public struct RAStrongObject: RAObject {
 
 /// A named typed class object that has a description.
 ///
-/// `RAAnyObject` is a type alias for the `RAObject` and `AnyObject` protocols. Classes that conform to it can be identified by the `name` and `type` properties:
+/// Classes that conform to this protocol can be identified by the `name` and `type` properties:
 ///
 ///     object.name // "Appearance"
 ///     object.type // "Module"
@@ -92,8 +92,8 @@ public struct RAStrongObject: RAObject {
 ///     print(object)
 ///     // Prints "Appearance-Module" by default
 ///
-/// All key classes conform to the `RAAnyObject` type alias.
-public typealias RAAnyObject = RAObject & AnyObject
+/// All key classes conform to the `RAAnyObject` protocol.
+public protocol RAAnyObject: RAObject, AnyObject {}
 
 
 
@@ -122,7 +122,7 @@ public extension RAObject {
     
     /// A textual representation of this object.
     ///
-    /// By default, it returns a string concatenating the name and the type of this object:
+    /// Returns a string concatenating the name and the type of this object:
     ///
     ///     module.description     // "Root-Module"
     ///     interactor.description // "Profile-Interactor"
