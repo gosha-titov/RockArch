@@ -1,4 +1,5 @@
 import Foundation
+import os
 
 /// The default logger that prints messages to the console.
 ///
@@ -21,10 +22,11 @@ public struct RAConsoleLogger: RALogger {
     
     /// The threshold log level that restricts the flow of incoming log messages from a black box.
     ///
+    /// By changing the value of this property, you do not receive lower-level messages.
     /// By default, the threshold level is `.trace`.
     public var thresholdLogLevel: RALogLevel = .trace
     
-    /// Logs a specific message by printing it in the console.
+    /// Logs a specific message by printing it to the console.
     public func log(_ message: RALogMessage) -> Void {
         guard message.text.isEmpty == false else { return }
         let formatter = DateFormatter()
@@ -44,6 +46,49 @@ public struct RAConsoleLogger: RALogger {
 
 
 
+/// The os logger that sends messages to the logging system.
+///
+/// You don't interact with this logger directly. You use it as one of the parameters for the black box.
+/// The default black box uses this logger.
+///
+/// The os logger logs incoming messages in the following way:
+///
+///     """
+///     Category  |  Time                  |  Type  |  Subsystem        |  Message
+///     ––––––––––+––––––––––––––––––––––––+––––––––+–––––––––––––––––––+––––––––––––––––––––––––
+///     Network      20:39:52.257992+0300      🟡      Weather-Service     No internet connection
+///     """
+///
+/// You can set a threshold log level to not receive lower-level messages from a black box.
+/// By default, the threshold level is `.info`.
+public struct RAOSLogger: RALogger {
+    
+    /// A string associated with the name of this logger.
+    ///
+    /// This property has the "OS" value.
+    public let name = "OS"
+    
+    /// The threshold log level that restricts the flow of incoming log messages from a black box.
+    ///
+    /// By changing the value of this property, you do not receive lower-level messages.
+    /// By default, the threshold level is `.info`.
+    public var thresholdLogLevel: RALogLevel = .info
+    
+    /// Logs a specific message by sending it to the logging system.
+    public func log(_ message: RALogMessage) -> Void {
+        let log = OSLog(subsystem: message.author, category: message.category)
+        let logType = message.level.toOSLogType
+        let message = message.text
+        os_log(logType, log: log, "%{public}@", message)
+    }
+    
+    /// Creates an os logger instance.
+    public init() {}
+    
+}
+
+
+
 /// A type that can log messages.
 ///
 /// The central function of the logger is to handle incoming log messages.
@@ -57,7 +102,7 @@ public struct RAConsoleLogger: RALogger {
 /// By default, the threshold level is `.trace`.
 public protocol RALogger: RAObject {
     
-    /// The threshold log level that restricts the flow of incoming log messages.
+    /// The threshold log level that restricts the flow of incoming log messages from a black box.
     var thresholdLogLevel: RALogLevel { get }
     
     /// Logs a specific message.
@@ -67,7 +112,7 @@ public protocol RALogger: RAObject {
 
 public extension RALogger {
     
-    /// The threshold log level that restricts the flow of incoming log messages.
+    /// The threshold log level that restricts the flow of incoming log messages from a black box.
     ///
     /// It's the default implementation of this property, so the threshold level is `.trace`.
     var thresholdLogLevel: RALogLevel {
