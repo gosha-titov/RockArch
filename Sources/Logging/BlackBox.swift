@@ -40,7 +40,19 @@ open class RABlackBox: RAAnyObject {
     /// The queue in which logging performs.
     public let queue: DispatchQueue
     
-    /// Logs a specific message by passing it to its loggers.
+    /// Logs a specific message by passing it to loggers.
+    ///
+    ///     blackBox.log(
+    ///         "No internet connection",
+    ///         author: "Weather-Service",
+    ///         category: "Network",
+    ///         level: .error
+    ///     )
+    ///
+    /// - Parameter message:  The text to log.
+    /// - Parameter author:   The string that describes an author of this message.
+    /// - Parameter category: The string that describes a category of this message.
+    /// - Parameter level:    The level associated how important this message is.
     public final func log(_ message: String, author: String, category: String, level: RALogLevel, fileID: String = #fileID, function: String = #function, line: Int = #line) -> Void {
         queue.async {
             let info = RAInfo(fileID: fileID, function: function, line: line)
@@ -61,6 +73,128 @@ open class RABlackBox: RAAnyObject {
         self.loggers = loggers
         self.queue = queue
         self.name = name
+    }
+    
+}
+
+
+extension RABlackBox {
+    
+    /// Logs a specific message by passing it to the current black box.
+    ///
+    /// You usually don't use this log method directly:
+    ///
+    ///     RABlackBox.log(
+    ///         "No internet connection",
+    ///         author: "Weather-Service",
+    ///         category: "Network",
+    ///         level: .error
+    ///     )
+    ///
+    /// Instead, you call the static method corresponding to a log level of your message:
+    ///
+    ///     RABlackBox.error(
+    ///         "No internet connection",
+    ///         author: "Weather-Service",
+    ///         category: "Network"
+    ///     )
+    ///
+    /// - Parameter message:  The text to log.
+    /// - Parameter author:   The string that describes an author of this message.
+    /// - Parameter category: The string that describes a category of this message.
+    /// - Parameter level:    The level associated how important this message is.
+    public static func log(_ message: String, author: String, category: String, level: RALogLevel, fileID: String = #fileID, function: String = #function, line: Int = #line) -> Void {
+        current.log(message, author: author, category: category, level: .trace, fileID: fileID, function: function, line: line)
+    }
+    
+    /// Logs a specific message by passing it to the current black box and specifying the `.trace` log level.
+    ///
+    ///     RABlackBox.trace(
+    ///         "Sending a request",
+    ///         author: "Auth-Service",
+    ///         category: "Server"
+    ///     )
+    ///
+    /// - Parameter message:  The text to log.
+    /// - Parameter author:   The string that describes an author of this message.
+    /// - Parameter category: The string that describes a category of this message.
+    public static func trace(_ message: String, author: String, category: String, fileID: String = #fileID, function: String = #function, line: Int = #line) -> Void {
+        log(message, author: author, category: category, level: .trace, fileID: fileID, function: function, line: line)
+    }
+    
+    /// Logs a specific message by passing it to the current black box and specifying the `.debug` log level.
+    ///
+    ///     RABlackBox.debug(
+    ///         "User closed the avatar image",
+    ///         author: "Avatar-ImageView",
+    ///         category: "Profile"
+    ///     )
+    ///
+    /// - Parameter message:  The text to log.
+    /// - Parameter author:   The string that describes an author of this message.
+    /// - Parameter category: The string that describes a category of this message.
+    public static func debug(_ message: String, author: String, category: String, fileID: String = #fileID, function: String = #function, line: Int = #line) -> Void {
+        log(message, author: author, category: category, level: .debug, fileID: fileID, function: function, line: line)
+    }
+    
+    /// Logs a specific message by passing it to the current black box and specifying the `.info` log level.
+    ///
+    ///     RABlackBox.info(
+    ///         "User gained 94 points out of 100",
+    ///         author: "Game-Statistics",
+    ///         category: "Game"
+    ///     )
+    ///
+    /// - Parameter message:  The text to log.
+    /// - Parameter author:   The string that describes an author of this message.
+    /// - Parameter category: The string that describes a category of this message.
+    public static func info(_ message: String, author: String, category: String, fileID: String = #fileID, function: String = #function, line: Int = #line) -> Void {
+        log(message, author: author, category: category, level: .info, fileID: fileID, function: function, line: line)
+    }
+    
+    /// Logs a specific message by passing it to the current black box and specifying the `.warning` log level.
+    ///
+    ///     RABlackBox.warning(
+    ///         "Attemp to add the friend that was already added",
+    ///         author: "Friend-CollectionView",
+    ///         category: "User"
+    ///     )
+    ///
+    /// - Parameter message:  The text to log.
+    /// - Parameter author:   The string that describes an author of this message.
+    /// - Parameter category: The string that describes a category of this message.
+    public static func warning(_ message: String, author: String, category: String, fileID: String = #fileID, function: String = #function, line: Int = #line) -> Void {
+        log(message, author: author, category: category, level: .warning, fileID: fileID, function: function, line: line)
+    }
+    
+    /// Logs a specific message by passing it to the current black box and specifying the `.error` log level.
+    ///
+    ///     RABlackBox.error(
+    ///         "No internet connection",
+    ///         author: "Weather-Service",
+    ///         category: "Network"
+    ///     )
+    ///
+    /// - Parameter message:  The text to log.
+    /// - Parameter author:   The string that describes an author of this message.
+    /// - Parameter category: The string that describes a category of this message.
+    public static func error(_ message: String, author: String, category: String, fileID: String = #fileID, function: String = #function, line: Int = #line) -> Void {
+        log(message, author: author, category: category, level: .error, fileID: fileID, function: function, line: line)
+    }
+    
+    /// Logs a specific message by passing it to the current black box and specifying the `.fatal` log level.
+    ///
+    ///     RABlackBox.fatal(
+    ///         "Stop functioning for some reason"
+    ///         author: "Image-Editor"
+    ///         category: "Library"
+    ///     )
+    ///
+    /// - Parameter message:  The text to log.
+    /// - Parameter author:   The string that describes an author of this message.
+    /// - Parameter category: The string that describes a category of this message.
+    public static func fatal(_ message: String, author: String, category: String, fileID: String = #fileID, function: String = #function, line: Int = #line) -> Void {
+        log(message, author: author, category: category, level: .fatal, fileID: fileID, function: function, line: line)
     }
     
 }
