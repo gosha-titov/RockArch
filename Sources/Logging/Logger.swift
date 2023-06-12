@@ -28,7 +28,6 @@ public struct RAConsoleLogger: RALogger {
     
     /// Logs a specific message by printing it to the console.
     public func log(_ message: RALogMessage) -> Void {
-        guard message.text.isEmpty == false else { return }
         let formatter = DateFormatter()
         formatter.timeStyle = .medium
         let time = formatter.string(from: message.timestamp)
@@ -84,6 +83,56 @@ public struct RAOSLogger: RALogger {
     
     /// Creates an os logger instance.
     public init() {}
+    
+}
+
+
+
+/// A type that can log messages in a simplified way.
+///
+/// The `RALoggable` protocol simplifies the logging process by specifying this object as an author of a message.
+/// That is, you call the `log(_:category:level:)` method instead of calling the corresponding log method of the black box.
+/// For example, calling this:
+///
+///     log("No internet connection", category: "Network", level: .error)
+///
+/// does the same thing as:
+///
+///     RABlackBox.error(
+///         "No internet connection",
+///         author: "Weather-Service",
+///         category: "Network"
+///     )
+///
+/// As a result, the following message will be printed:
+///
+///     "[Network] 7:26:33 PM <error> Weather-Service: No internet connection."
+///
+/// All key objects conform to the `RALoggable` protocol.
+public protocol RALoggable where Self: RAObject {
+    
+    /// Logs a message by specifying this object as an author.
+    ///
+    /// Call this method when you need to log a message on behalf of this object. For example:
+    ///
+    ///     log("No internet connection", category: "Network", level: .error)
+    ///
+    /// As a result, the following message will be printed:
+    ///
+    ///     "[Network] 7:26:33 PM <error> Weather-Service: No internet connection."
+    ///
+    /// - Parameter message:  The text to log.
+    /// - Parameter category: The string that describes a category of this message.
+    /// - Parameter level:    The level with which this message will be logged.
+    func log(_ message: String, category: String, level: RALogLevel, fileID: String, function: String, line: Int) -> Void
+    
+}
+
+public extension RALoggable {
+    
+    func log(_ message: String, category: String, level: RALogLevel = .debug, fileID: String = #fileID, function: String = #function, line: Int = #line) -> Void {
+        RABlackBox.log(message, author: description, category: category, level: level, fileID: fileID, function: function, line: line)
+    }
     
 }
 
