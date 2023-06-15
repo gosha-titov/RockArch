@@ -1,12 +1,12 @@
 /// A type that can be integrated into a module.
 ///
-/// The `RAIntegratable` protocol has a `module` property to which this component integrated into.
-/// Thereby, the integrated component reflects the module by having the same name and type as the module.
+/// The `RAIntegratable` protocol has a `module` property into which this component is integrated.
+/// Thereby, the integrated component reflects the module by having the same name and type as it.
 /// The `RAInteractor`, `RARouter`, `RAPresenter` and `RABuilder` components conforms to this protocol.
 /// - Note: The `module` property should be weak to avoid memory leaks.
 public protocol RAIntegratable where Self: RAComponent {
     
-    /// A module to that this component is integrated into.
+    /// A module into which this component is integrated.
     /*weak*/ var module: RAModule? { get set }
     
 }
@@ -15,7 +15,7 @@ public extension RAIntegratable {
         
     /// A string associated with the name of this component.
     ///
-    /// This property has the same name as the name of the module to which this component is integrated into; otherwise, "Unowned".
+    /// This property has the same name as the name of the module into which this component is integrated; otherwise, "Unowned".
     /// It's the default implementation of this property.
     var name: String {
         return module?.name ?? "Unowned"
@@ -23,7 +23,7 @@ public extension RAIntegratable {
     
     /// The current state of this component.
     ///
-    /// This property has the same state as the state of the module to which this component is integrated into; otherwise, `.inactive`.
+    /// This property has the same state as the state of the module into which this component is integrated; otherwise, `.inactive`.
     /// It's the default implementation of this property.
     var state: RAComponentState {
         return module?.state ?? .inactive
@@ -51,6 +51,20 @@ public protocol RAComponent: RAAnyObject, RALoggable {
     func clean()
     
 }
+
+public extension RAComponent {
+    
+    /// A boolean value that indicates whether this component is active.
+    var isActive: Bool { state == .active }
+    
+    /// A boolean value that indicates whether this component is suspended.
+    var isSuspended: Bool { state == .suspended }
+    
+    /// A boolean value that indicates whether this component is inactive.
+    var isInactive: Bool { state == .inactive }
+    
+}
+
 
 
 /// A state that describes the component at a particular time.
