@@ -13,6 +13,9 @@ open class RAModule: RAComponent {
     /// The current state of this module.
     public private(set) var state: RAComponentState = .inactive
     
+    /// A boolean value that indicates whether this module is loaded into the parent memory.
+    public private(set) var isLoaded: Bool = false
+    
     
     // MARK: Relatives
     
@@ -56,6 +59,52 @@ open class RAModule: RAComponent {
     /// You usually override this method to clean your properties.
     /// You don't need to call the `super` method.
     open func clean() {}
+    
+    /// Performs internal setup for this module before it starts working.
+    private func _setup() -> Void {
+        setup() // Should be called first
+    }
+    
+    /// Performs internal clean for this module after it stops working.
+    private func _clean() -> Void {
+        clean() // Should be called last
+    }
+    
+    /// Called when a parent module loads this module into its memory.
+    internal final func load() -> Void {
+        defer { log("Loaded into memory", category: "ModuleLifecycle") }
+        isLoaded = true
+    }
+    
+    /// Called when a parent module starts this module.
+    internal final func start() -> Void {
+        defer { log("Started working", category: "ModuleLifecycle") }
+        state = .active
+    }
+    
+    /// Called when this module starts a child module.
+    internal final func suspend() -> Void {
+        defer { log("Suspended working", category: "ModuleLifecycle") }
+        state = .suspended
+    }
+    
+    /// Called when a child module stops its work.
+    internal final func resume() -> Void {
+        defer { log("Resumed working", category: "ModuleLifecycle") }
+        state = .active
+    }
+    
+    /// Called when this module should stop its work for some reason.
+    internal final func stop() -> Void {
+        defer { log("Stopped working", category: "ModuleLifecycle") }
+        state = .inactive
+    }
+    
+    /// Called when a parent module unloads this module from its memory.
+    internal final func unload() -> Void {
+        defer { log("Unloaded from memory", category: "ModuleLifecycle") }
+        isLoaded = false
+    }
     
     
     // MARK: - Init and Deinit
