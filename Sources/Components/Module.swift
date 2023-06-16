@@ -14,6 +14,18 @@ open class RAModule: RAComponent {
     public private(set) var state: RAComponentState = .inactive
     
     
+    // MARK: Relatives
+    
+    /// The root module of the application.
+    internal private(set) static var root: RAModule? = nil
+    
+    /// A parent module that owns this module, or `nil`.
+    internal weak var parent: RAModule?
+    
+    /// The dictionary that stores created (and loaded) child modules by their names.
+    private var children = [String: RAModule]()
+    
+    
     // MARK: Inner Components
     
     /// The internal interactor of this module.
