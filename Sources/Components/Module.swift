@@ -162,6 +162,46 @@ open class RAModule: RAComponent {
 
 
 
+/// The methods adopted by the object you use to manage the lifecycle of a specific module.
+public protocol RAModuleLifecycleDelegate where Self: RAAnyObject {
+    
+    /// Asks the delegate with what dependency it should be loaded.
+    func moduleShouldLoad(byInjecting dependency: RADependency?) -> Bool
+    
+    /// Notifies the delegate that the module is loaded into the parent memory.
+    func moduleDidLoad() -> Void
+    
+    /// Asks the delegate with what context it should be started.
+    func moduleShouldStart(within context: RAContext?) -> Bool
+    
+    /// Notifies the delegate that the module is started.
+    func moduleDidStart() -> Void
+    
+    /// Notifies the delegate that the module is about to be suspended.
+    func moduleWillSuspend() -> Void
+    
+    /// Notifies the delegate that the module is suspended.
+    func moduleDidSuspend() -> Void
+    
+    /// Notifies the delegate that the module is about to be resumed.
+    func moduleWillResume() -> Void
+    
+    /// Notifies the delegate that the module is resumed.
+    func moduleDidResume() -> Void
+    
+    /// Asks the delegate if there will be any result when the module stops its work.
+    func moduleShouldStop() -> RAResult?
+    
+    /// Notifies the delegate that the module is stopped.
+    func moduleDidStop() -> Void
+    
+    /// Notifies the delegate that the module is about to be unloaded from the parent memory.
+    func moduleWillUnload() -> Void
+    
+}
+
+
+
 internal final class RAStubModule: RAModule {
     
     internal init() {
