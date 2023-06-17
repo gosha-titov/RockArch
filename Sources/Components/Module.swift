@@ -162,6 +162,19 @@ open class RAModule: RAComponent {
 
 
 
+/// The methods adopted by the object you use to provide data for a specifc module.
+public protocol RAModuleDataSource where Self: RAAnyObject {
+    
+    /// Provides a dependency for a specific child module when it loads into memory.
+    func dependency(for childName: String) -> RADependency?
+    
+    /// Provides a context for a specific child module when it starts.
+    func context(for childName: String) -> RAContext?
+    
+}
+
+
+
 /// The methods adopted by the object you use to manage the lifecycle of a specific module.
 public protocol RAModuleLifecycleDelegate where Self: RAAnyObject {
     
