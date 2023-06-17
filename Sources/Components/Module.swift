@@ -44,6 +44,28 @@ open class RAModule: RAComponent {
     internal let builder: RABuilder?
     
     
+    // MARK: Delegate and Data Source
+    
+    /// The object that acts as the lifecycle delegate of this module.
+    private let lifecycleDelegate: RAModuleLifecycleDelegate
+    
+    /// The object that provides the data for child modules of this module.
+    private let dataSource: RAModuleDataSource
+    
+    
+    /// Loads the given module into memory if possible.
+    ///
+    /// After the given module is loaded it will become a child.
+    /// - Returns: `True` if the given module was loaded successfully; otherwise, `false`.
+    private func load(_ child: RAModule) -> Bool {
+        let dependency = dataSource.dependency(forChildModuleWithName: child.name)
+        let childIsLoaded = child.load(
+            byInjecting: dependency,
+            executeIfModuleCanBeLoaded: { attach(child) }
+        )
+        return childIsLoaded
+    }
+    
     /// Adds a specific module to children by its name.
     private func attach(_ child: RAModule) -> Void {
         children[child.name] = child
@@ -83,10 +105,24 @@ open class RAModule: RAComponent {
         clean() // Should be called last
     }
     
+    /// Loads this module by configurating it.
+    ///
     /// Called when a parent module loads this module into its memory.
-    internal final func load() -> Void {
-        defer { log("Loaded into memory", category: "ModuleLifecycle") }
+    /// - Returns: `True` if the module was loaded successfully; otherwise, `false`.
+    internal final func load(byInjecting dependency: RADependency?, executeIfModuleCanBeLoaded executionBlock: () -> Void) -> Bool {
+        let moduleCanLoad = lifecycleDelegate.moduleShouldLoad(byInjecting: dependency)
+        guard moduleCanLoad else {
+            log("Couldn't be loaded because of the lack of the necessary dependency",
+                category: "ModuleLifecycle",
+                level: .error)
+            return false
+        }
+        executionBlock() // Should be executed before any actions
+        _setup()
         isLoaded = true
+        log("Loaded into memory", category: "ModuleLifecycle")
+        lifecycleDelegate.moduleDidLoad()
+        return true
     }
     
     /// Called when a parent module starts this module.
@@ -151,6 +187,8 @@ open class RAModule: RAComponent {
         self.router = router
         self.view = view
         self.builder = builder
+        lifecycleDelegate = interactor
+        dataSource = interactor
         RALeakDetector.register(self)
     }
     
@@ -166,10 +204,10 @@ open class RAModule: RAComponent {
 public protocol RAModuleDataSource where Self: RAAnyObject {
     
     /// Provides a dependency for a specific child module when it loads into memory.
-    func dependency(for childName: String) -> RADependency?
+    func dependency(forChildModuleWithName childName: String) -> RADependency?
     
     /// Provides a context for a specific child module when it starts.
-    func context(for childName: String) -> RAContext?
+    func context(forChildModuleWithName childName: String) -> RAContext?
     
 }
 
