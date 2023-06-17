@@ -14,3 +14,14 @@ public typealias RADependency = Any
 /// So, you have the `FriendsModule` and `FriendProfileModule` classes.
 /// That is, the context for the second module is a `friendID` that you pass from the first module.
 public typealias RAContext = Any
+
+
+
+/// A result with which a module stops the work.
+///
+/// When a module hides, it can pass a result of its work to a parent module.
+///
+/// For example, you have settings where a user can choose an acсent color for the application.
+/// So, you have the `SettingsModule` and `ColorPickerModule` classes.
+/// That is, the result of the second module is a `chosenColor` that you receive in the first module.
+public typealias RAResult = Any
