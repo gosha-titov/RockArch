@@ -44,6 +44,19 @@ open class RAModule: RAComponent {
     internal let builder: RABuilder?
     
     
+    /// Adds a specific module to children by its name.
+    private func attach(_ child: RAModule) -> Void {
+        children[child.name] = child
+        child.parent = self
+    }
+    
+    /// Removes a specific module from children by its name.
+    private func detach(_ child: RAModule) -> Void {
+        children.removeValue(forKey: child.name)
+        child.parent = nil
+    }
+    
+    
     // MARK: - Lifecycle
     
     /// Setups this module before it starts working.
@@ -143,6 +156,16 @@ open class RAModule: RAComponent {
     
     deinit {
         log("Deleted", category: "ModuleLifecycle")
+    }
+    
+}
+
+
+
+internal final class RAStubModule: RAModule {
+    
+    internal init() {
+        super.init(name: "Stub", interactor: RAStubInteractor(), router: RAStubRouter())
     }
     
 }
