@@ -53,6 +53,32 @@ open class RAModule: RAComponent {
     private let dataSource: RAModuleDataSource
     
     
+    
+    /// Preloads a specific child module into memory.
+    /// - Returns: `True` if the child module has been loaded into memory; otherwise, `false`.
+    internal final func loadChildModule(byName childName: String) -> Bool {
+        guard isLoaded else {
+            log("Couldn't load the `\(childName)` child module because this module wasn't loaded into memory",
+                category: "ModuleManagement",
+                level: .error)
+            return false
+        }
+        guard children[childName].isNil else {
+            log("Couldn't load the `\(childName)` child module because it was already loaded into memory",
+                category: "ModuleManagement",
+                level: .warning)
+            return false
+        }
+        guard let builtChild = buildChildModule(byName: childName) else {
+            log("Couldn't load the `\(childName)` child module into memory because it couldn't be built",
+                category: "ModuleManagement",
+                level: .error)
+            return false
+        }
+        let childIsLoaded = load(builtChild)
+        return childIsLoaded
+    }
+    
     /// Loads the given module into memory if possible.
     ///
     /// After the given module is loaded it will become a child.
@@ -76,6 +102,17 @@ open class RAModule: RAComponent {
     private func detach(_ child: RAModule) -> Void {
         children.removeValue(forKey: child.name)
         child.parent = nil
+    }
+    
+    private func buildChildModule(byName childName: String) -> RAModule? {
+        guard let builder else {
+            log("Couldn't build the `\(childName)` child module because this module didn't have a builder",
+                category: "ModuleManagement",
+                level: .error)
+            return nil
+        }
+        let builtModule = builder.buildChildModule(byName: childName)
+        return builtModule
     }
     
     
