@@ -28,6 +28,17 @@ open class RAModule: RAComponent {
     /// The dictionary that stores created (and loaded) child modules by their names.
     private var children = [String: RAModule]()
     
+    /// The child modules embedded in this module.
+    private var embeddedModules: [String: RAModule] {
+        return children.filter { namesOfEmbeddedModules.contains($0.key) }
+    }
+    
+    /// The names of the child modules embedded in this module.
+    public private(set) var namesOfEmbeddedModules = [String]()
+    
+    /// The names of the child modules that should be embedded during the loading of this module.
+    private var namesOfChildModulesThatShouldBeEmbedded = [String]()
+    
     
     // MARK: Inner Components
     
@@ -53,6 +64,54 @@ open class RAModule: RAComponent {
     private let dataSource: RAModuleDataSource
     
     
+    
+    // MARK: - Embedding Modules
+    
+    /// Embeds a specific module into this module by its associated name.
+    ///
+    /// It's used for a composite module, for example a tab bar module:
+    ///
+    ///     override func setup() -> Void {
+    ///         embedChildModule(byName: "Feed")
+    ///         embedChildModule(byName: "Messages")
+    ///         embedChildModule(byName: "Settings")
+    ///     }
+    ///
+    /// - Note: You can embed a child module only before this module is loaded into memory.
+    public final func embedChildModule(byName childName: String) -> Void {
+        guard isLoaded == false else {
+            log("Couldn't embed the `\(childName)` child module because this module was loaded",
+                category: "ModuleManagement",
+                level: .error)
+            return
+        }
+        guard namesOfChildModulesThatShouldBeEmbedded.contains(childName) == false else {
+            log("Couldn't embed the `\(childName)` child module twice",
+                category: "ModuleManagement",
+                level: .warning)
+            return
+        }
+        namesOfChildModulesThatShouldBeEmbedded.append(childName)
+    }
+    
+    /// Embeds a specific child modules into this module by loading it into memory.
+    private func embedChildModulesIfNeeded() -> Void {
+        for childName in namesOfChildModulesThatShouldBeEmbedded {
+            let childIsLoaded = loadChildModule(byName: childName)
+            if childIsLoaded {
+                namesOfEmbeddedModules.append(childName)
+                log("Embedded the `\(childName)` child module successfully",
+                    category: "ModuleManagement")
+            } else {
+                log("Couldn't embed the `\(childName)` child module because it couldn't be loaded",
+                    category: "ModuleManagement",
+                    level: .error)
+            }
+        }
+    }
+    
+    
+    // MARK: - Building and Loading Modules
     
     /// Preloads a specific child module into memory.
     /// - Returns: `True` if the child module has been loaded into memory; otherwise, `false`.
@@ -104,6 +163,7 @@ open class RAModule: RAComponent {
         child.parent = nil
     }
     
+    /// Builds a specific child module by its associated name if possible.
     private func buildChildModule(byName childName: String) -> RAModule? {
         guard let builder else {
             log("Couldn't build the `\(childName)` child module because this module didn't have a builder",
@@ -147,8 +207,8 @@ open class RAModule: RAComponent {
     /// Called when a parent module loads this module into its memory.
     /// - Returns: `True` if the module was loaded successfully; otherwise, `false`.
     internal final func load(byInjecting dependency: RADependency?, executeIfModuleCanBeLoaded executionBlock: () -> Void) -> Bool {
-        let moduleCanLoad = lifecycleDelegate.moduleShouldLoad(byInjecting: dependency)
-        guard moduleCanLoad else {
+        let moduleCanBeLoaded = lifecycleDelegate.moduleShouldLoad(byInjecting: dependency)
+        guard moduleCanBeLoaded else {
             log("Couldn't be loaded because of the lack of the necessary dependency",
                 category: "ModuleLifecycle",
                 level: .error)
@@ -157,6 +217,7 @@ open class RAModule: RAComponent {
         executionBlock() // Should be executed before any actions
         _setup()
         isLoaded = true
+        embedChildModulesIfNeeded()
         log("Loaded into memory", category: "ModuleLifecycle")
         lifecycleDelegate.moduleDidLoad()
         return true
