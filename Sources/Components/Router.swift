@@ -22,7 +22,29 @@ open class RARouter: RAComponent, RAIntegratable {
     /// You don't need to call the `super` method.
     open func clean() {}
     
+    /// Performs internal setup for this router before it starts working.
+    ///
+    /// Only the module into which this router integrated should call this method when it is loaded into memory and assembled.
+    /// - Note: The module should not call the `setup()` method directly, so it calls this internal `_setup()` method.
+    internal final func _setup() -> Void {
+        defer { setup() }
+        RALeakDetector.register(self)
+    }
+    
+    /// Performs internal cleaning for this router after it stops working.
+    ///
+    /// Only the module into which this router integrated should call this method when it is about to be unloaded from memory and disassembled.
+    /// - Note: The module should not call the `clean()` method directly, so it calls this internal `_clean()` method.
+    internal final func _clean() -> Void {
+        clean() // Should be called first
+    }
+    
+    
     /// Creates a router instance.
     public init() {}
     
 }
+
+
+
+internal final class RAStubRouter: RARouter {}
