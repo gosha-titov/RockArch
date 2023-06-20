@@ -144,6 +144,7 @@ open class RAModule: RAComponent {
     /// After the given module is loaded it will become a child.
     /// - Returns: `True` if the given module was loaded successfully; otherwise, `false`.
     private func load(_ child: RAModule) -> Bool {
+        guard children[child.name].isNil else { return false }
         let dependency = dataSource.dependency(forChildModuleWithName: child.name)
         let childIsLoaded = child.load(
             byInjecting: dependency,
@@ -152,13 +153,23 @@ open class RAModule: RAComponent {
         return childIsLoaded
     }
     
-    /// Adds a specific module to children by its name.
+    private func unloadAllChildren() -> Void {
+        for child in children { unload(child) }
+    }
+    
+    /// Unloads the given module from memory.
+    private func unload(_ child: RAModule) -> Void {
+        guard children[child.name].hasValue else { return }
+        child.unload(byRemovingFromModuleTree: { detach(child)} )
+    }
+    
+    /// Adds the given module to children by its name.
     private func attach(_ child: RAModule) -> Void {
         children[child.name] = child
         child.parent = self
     }
     
-    /// Removes a specific module from children by its name.
+    /// Removes the given module from children by its name.
     private func detach(_ child: RAModule) -> Void {
         children.removeValue(forKey: child.name)
         child.parent = nil
@@ -244,8 +255,9 @@ open class RAModule: RAComponent {
     /// Loads this module by configurating it.
     ///
     /// Called when this module is in the process of being added to the module tree.
+    /// - Parameter attachToModuleTree: The closure that is called before this module is assembled and setup.
     /// - Returns: `True` if the module was loaded successfully; otherwise, `false`.
-    internal final func load(byInjecting dependency: RADependency?, andAddingToModuleTree addThisToModuleTree: () -> Void) -> Bool {
+    internal final func load(byInjecting dependency: RADependency?, andAddingToModuleTree attachToModuleTree: () -> Void) -> Bool {
         let moduleCanBeLoaded = lifecycleDelegate.moduleShouldLoad(byInjecting: dependency)
         guard moduleCanBeLoaded else {
             log("Couldn't be loaded because of the lack of the necessary dependency",
@@ -253,7 +265,7 @@ open class RAModule: RAComponent {
                 level: .error)
             return false
         }
-        addThisToModuleTree() // Should be executed before any actions
+        attachToModuleTree() // Should be executed before any actions
         assemble()
         _setup()
         isLoaded = true
@@ -287,10 +299,18 @@ open class RAModule: RAComponent {
         state = .inactive
     }
     
-    /// Called when a parent module unloads this module from its memory.
-    internal final func unload() -> Void {
-        defer { log("Unloaded from memory", category: "ModuleLifecycle") }
+    /// Unloads this module by deconfigurating it.
+    ///
+    /// Called when this module is in the process of being removed from the module tree.
+    /// - Parameter detachFromModuleTree: The closure that is called after this module is cleaned and disassembled.
+    internal final func unload(byRemovingFromModuleTree detachFromModuleTree: () -> Void) -> Void {
+        lifecycleDelegate.moduleWillUnload()
+        unloadAllChildren()
+        _clean()
         isLoaded = false
+        disassemble()
+        detachFromModuleTree()
+        log("Unloaded from memory", category: "ModuleLifecycle")
     }
     
     
