@@ -47,7 +47,7 @@ open class RABlackBox: RAAnyObject {
     /// A string associated with the name of this black box.
     public let name: String
     
-    /// A textual representation of the type of this black box.
+    /// A textual representation of the type of this object.
     ///
     /// This property has the "BlackBox" value.
     public let type = "BlackBox"
@@ -128,9 +128,9 @@ extension RABlackBox {
     /// Logs a specific message by passing it to the current black box and specifying the `.trace` log level.
     ///
     ///     RABlackBox.trace(
-    ///         "Sending a request",
+    ///         "Start sending a request",
     ///         author: "Auth-Service",
-    ///         category: "Server"
+    ///         category: "Authorization"
     ///     )
     ///
     /// - Parameter message:  The text to log.
