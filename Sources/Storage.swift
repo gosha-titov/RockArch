@@ -1,3 +1,18 @@
+/// A storage that weakly stores specific interactors.
+internal final class RAWeakInteractorStorage: RAWeakStorage<RAInteractor> {
+    
+    /// The singleton weak interactor storage instance.
+    internal static let shared = RAWeakInteractorStorage()
+    
+    /// Creates a weak interactor storage instance.
+    private init() {
+        super.init(name: "WeakInteractor")
+    }
+    
+}
+
+
+
 /// A storage that weakly stores specific objects.
 ///
 /// Weak storages are used when you need to extend an existent type with a stored property that weakly references to an object.
@@ -63,8 +78,8 @@ open class RAWeakStorage<StoredObject>: RAAbstractStorage<StoredObject> where St
     }
     
     /// Creates a named storage instance.
-    ///
-    /// - Parameter name: A name of this storage. You usually specify the string concatenating the name of a stored object with the "Weak" prefix, as in the following example: "WeakDependency".
+    /// - Parameter name: A name of this storage. You usually specify the string concatenating the name of a stored object
+    /// with the "Weak" prefix, as in the following example: "WeakDependency".
     public override init(name: String = "Weak") {
         super.init(name: name)
     }
@@ -138,8 +153,8 @@ open class RAStrongStorage<StoredObject>: RAAbstractStorage<StoredObject> where 
     }
     
     /// Creates a named storage instance.
-    ///
-    /// - Parameter name: A name of this storage. You usually specify the string concatenating the name of a stored object with the "Strong" prefix, as in the following example: "StrongDependency".
+    /// - Parameter name: A name of this storage. You usually specify the string concatenating the name of a stored object
+    /// with the "Strong" prefix, as in the following example: "StrongDependency".
     public override init(name: String = "Strong") {
         super.init(name: name)
     }
