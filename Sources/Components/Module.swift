@@ -114,7 +114,7 @@ open class RAModule: RAComponent {
     
     // MARK: - Building and Loading Modules
     
-    /// Preloads a specific child module into memory.
+    /// Loads a specific child module into memory by its associated name if possible.
     /// - Returns: `True` if the child module has been loaded into memory; otherwise, `false`.
     internal final func loadChildModule(byName childName: String) -> Bool {
         guard isLoaded else {
@@ -139,6 +139,30 @@ open class RAModule: RAComponent {
         return childIsLoaded
     }
     
+    /// Unloads a specific child module from memory by its associated name if possible.
+    /// - Returns: `True` if the child module has been unloaded from memory; otherwise, `false`.
+    internal final func unloadChildModule(byName childName: String) -> Bool {
+        guard let child = children[childName] else {
+            log("Couldn't unload the `\(childName)` child module because there's no loaded module with this name",
+                category: "ModuleManagement",
+                level: .error)
+            return false
+        }
+        guard child.isInactive else {
+            log("Couldn't unload the `\(childName)` child module because it's active or suspended",
+                category: "ModuleManagement",
+                level: .error)
+            return false
+        }
+        unload(child)
+        return true
+    }
+    
+    /// Unloads all children from memory.
+    private func unloadAllChildren() -> Void {
+        for child in children.values { unload(child) }
+    }
+    
     /// Loads the given module into memory if possible.
     ///
     /// After the given module is loaded it will become a child.
@@ -151,10 +175,6 @@ open class RAModule: RAComponent {
             andAddingToModuleTree: { attach(child) }
         )
         return childIsLoaded
-    }
-    
-    private func unloadAllChildren() -> Void {
-        for child in children { unload(child) }
     }
     
     /// Unloads the given module from memory.
