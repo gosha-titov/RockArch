@@ -69,7 +69,7 @@ open class RAModule: RAComponent {
     
     /// Embeds a specific module into this module by its associated name.
     ///
-    /// It's used for a composite module, for example a tab bar module:
+    /// It's used for a composite module. For example, for a tab bar module:
     ///
     ///     override func setup() -> Void {
     ///         embedChildModule(byName: "Feed")
@@ -96,6 +96,7 @@ open class RAModule: RAComponent {
     
     /// Embeds a specific child modules into this module by loading it into memory.
     private func embedChildModulesIfNeeded() -> Void {
+        namesOfChildModulesThatShouldBeEmbedded.removeDuplicates()
         for childName in namesOfChildModulesThatShouldBeEmbedded {
             let childIsLoaded = loadChildModule(byName: childName)
             if childIsLoaded {
@@ -146,7 +147,7 @@ open class RAModule: RAComponent {
         let dependency = dataSource.dependency(forChildModuleWithName: child.name)
         let childIsLoaded = child.load(
             byInjecting: dependency,
-            executeIfModuleCanBeLoaded: { attach(child) }
+            andAddingToModuleTree: { attach(child) }
         )
         return childIsLoaded
     }
@@ -176,7 +177,9 @@ open class RAModule: RAComponent {
     }
     
     
-    // MARK: - Lifecycle
+    // MARK: - Configuration
+    
+    // MARK: Setuping and Cleaning
     
     /// Setups this module before it starts working.
     ///
@@ -192,21 +195,57 @@ open class RAModule: RAComponent {
     /// You don't need to call the `super` method.
     open func clean() {}
     
-    /// Performs internal setup for this module before it starts working.
+    /// Performs internal setup for this module before it starts working by calling the setup method of this module and its inner components.
     private func _setup() -> Void {
         setup() // Should be called first
+        builder?._setup()
+        router._setup()
+        view?._setup()
+        interactor._setup()
     }
     
-    /// Performs internal clean for this module after it stops working.
+    /// Performs internal clean for this module after it stops working by calling the setup method of this module and its inner components.
     private func _clean() -> Void {
+        interactor._clean()
+        view?._clean()
+        router._clean()
+        builder?._clean()
         clean() // Should be called last
     }
     
+    
+    // MARK: Assembly and Disassembly
+    
+    /// Assembles this module by connecting its components to each other and to itself.
+    private func assemble() -> Void {
+        router.viewController = view
+        view?._interactor = interactor
+        interactor._router = router
+        interactor._view = view
+        interactor.module = self
+        router.module = self
+        view?.module = self
+    }
+    
+    /// Disassembles this module by disconnecting components from each other and from itself.
+    private func disassemble() -> Void {
+        router.viewController = nil
+        view?._interactor = nil
+        interactor._router = nil
+        interactor._view = nil
+        interactor.module = nil
+        router.module = nil
+        view?.module = nil
+    }
+    
+    
+    // MARK: - Lifecycle
+    
     /// Loads this module by configurating it.
     ///
-    /// Called when a parent module loads this module into its memory.
+    /// Called when this module is in the process of being added to the module tree.
     /// - Returns: `True` if the module was loaded successfully; otherwise, `false`.
-    internal final func load(byInjecting dependency: RADependency?, executeIfModuleCanBeLoaded executionBlock: () -> Void) -> Bool {
+    internal final func load(byInjecting dependency: RADependency?, andAddingToModuleTree addThisToModuleTree: () -> Void) -> Bool {
         let moduleCanBeLoaded = lifecycleDelegate.moduleShouldLoad(byInjecting: dependency)
         guard moduleCanBeLoaded else {
             log("Couldn't be loaded because of the lack of the necessary dependency",
@@ -214,7 +253,8 @@ open class RAModule: RAComponent {
                 level: .error)
             return false
         }
-        executionBlock() // Should be executed before any actions
+        addThisToModuleTree() // Should be executed before any actions
+        assemble()
         _setup()
         isLoaded = true
         embedChildModulesIfNeeded()
