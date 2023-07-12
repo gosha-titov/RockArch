@@ -65,13 +65,16 @@ open class RAModule: RAComponent {
     internal let builder: RABuilder?
     
     
-    // MARK: Delegate and Data Source
+    // MARK: Delegates
     
     /// The object that acts as the lifecycle delegate of this module.
     private let lifecycleDelegate: RAModuleLifecycleDelegate
     
     /// The object that provides the data for child modules of this module.
     private let dataSource: RAModuleDataSource
+    
+    /// The object that handles the data from specific modules.
+    private let dataHandler: RAModuleDataHandler
     
     
     // MARK: - Starting and Stoping Modules
@@ -575,6 +578,7 @@ open class RAModule: RAComponent {
         self.view = view
         self.builder = builder
         lifecycleDelegate = interactor
+        dataHandler = interactor
         dataSource = interactor
         log("Created", category: .moduleLifecycle)
         
@@ -605,6 +609,24 @@ public protocol RAModuleDataSource where Self: RAAnyObject {
     
     /// Provides a result of the work of the module.
     func result() -> RAResult?
+    
+}
+
+
+/// The methods adopted by the object you use to handle data from specific modules.
+public protocol RAModuleDataHandler where Self: RAAnyObject {
+    
+    /// Handles the incoming value from a specific child module.
+    func child(_ childName: String, didPassValue value: Any, withLabel label: String) -> Void
+    
+    /// Handles the work result of a specific child module.
+    func child(_ childName: String, didPassResult result: RAResult) -> Void
+    
+    /// Handles the incoming value from a parent module.
+    func parent(_ parentName: String, didPassValue value: Any, withLabel label: String) -> Void
+    
+    /// Handles the incoming value from a specific module from the entire module tree.
+    func module(_ moduleName: String, didPassValue value: Any, withLabel label: String) -> Void
     
 }
 
