@@ -108,13 +108,86 @@ open class RAModule: RAComponent {
     
     // MARK: - Communicating
     
-    /// Returns the work result of this module.
-    internal final func result() -> RAResult? {
-        for child in children.values {
-            handleResult(from: child)
+    /// Sends the given signal to a specific receiver.
+    /// - Returns: `True` if the receiver (or at least one of them) has handled this signal; otherwise, `false`.
+    internal final func send(_ signal: RASignal, to receiver: RAReceiver) -> Bool {
+        var signalIsSended: Bool = false
+        func sendSignal(to module: RAModule, from sender: RASender) -> Void {
+            if module.handle(signal, from: sender) {
+                signalIsSended = true
+            }
         }
-        let result = dataSource.result()
-        return result
+        switch receiver {
+        case .global(let globalReceiver):
+            let allModules = RAModule.all
+            let sender: RASender = .global(name)
+            switch globalReceiver {
+            case .all:
+                allModules.forEach { sendSignal(to: $0, from: sender) }
+            case .group(let globalNames):
+                allModules.filter { globalNames.contains($0.name) }
+                    .forEach { sendSignal(to: $0, from: sender) }
+            case .some(let globalName):
+                allModules.filter { $0.name == globalName }
+                    .forEach { sendSignal(to: $0, from: sender) }
+            }
+        case .parent:
+            guard let parent else {
+                log("Couldn't send the `\(signal)` to the nonexistent parent",
+                    category: "", level: .error)
+                return false
+            }
+            let sender: RASender = .child(name)
+            sendSignal(to: parent, from: sender)
+        case .child(let childReceiver):
+            let children = children.values
+            let sender: RASender = .parent(name)
+            switch childReceiver {
+            case .all:
+                children.forEach { sendSignal(to: $0, from: sender) }
+            case .group(let childrenNames):
+                children.filter { childrenNames.contains($0.name) }
+                    .forEach { sendSignal(to: $0, from: sender) }
+            case .some(let childName):
+                guard let child = children.first(where: { $0.name == childName }) else {
+                    log("Couldn't send the `\(signal)` to the `\(childName)` nonexistent child",
+                        category: "", level: .error)
+                    return false
+                }
+                sendSignal(to: child, from: sender)
+            }
+        }
+        return signalIsSended
+    }
+    
+    /// Handles the given signal from a specifc sender.
+    /// - Returns: `True` if the signal has been handled; otherwise, `false`.
+    @discardableResult
+    internal final func handle(_ signal: RASignal, from sender: RASender) -> Bool {
+        switch sender {
+        case .global(let globalName):
+            guard RAModule.all.contains(where: { $0.name == globalName }) else {
+                log("Couldn't handle the `\(signal)` signal from the `\(globalName)` unknown global module",
+                    category: "", level: .error)
+                return false
+            }
+            dataHandler.global(globalName, didPassValue: signal.value, withLabel: signal.label)
+        case .parent(let parentName):
+            guard let parent, parent.name == parentName else {
+                log("Couldn't handle the `\(signal)` signal from the `\(parentName)` unknown parent module",
+                    category: "", level: .error)
+                return false
+            }
+            dataHandler.parent(parentName, didPassValue: signal.value, withLabel: signal.label)
+        case .child(let childName):
+            guard children[childName].hasValue else {
+                log("Couldn't handle the `\(signal)` signal from the `\(childName)` unknown child module",
+                    category: "", level: .error)
+                return false
+            }
+            dataHandler.child(childName, didPassValue: signal.value, withLabel: signal.label)
+        }
+        return true
     }
     
     /// Handles a work result from the given child module.
@@ -125,20 +198,37 @@ open class RAModule: RAComponent {
         }
     }
     
-    /// Provides a context to the given child module.
-    /// - Returns: `True` if this child module can be started; otherwise, `false`.
-    private func provideContext(to child: RAModule) -> Bool {
-        guard child.isInactive else { return false }
-        let context = dataSource.context(forChildModuleWithName: child.name)
-        return child.canStart(within: context)
+    /// Returns the work result of this module.
+    internal final func result() -> RAResult? {
+        for child in children.values {
+            handleResult(from: child)
+        }
+        let result = dataSource.result()
+        return result
     }
     
     /// Provides a dependency to the given child module.
     /// - Returns: `True` if this child module can be loaded; otherwise, `false`.
     private func provideDependency(to child: RAModule) -> Bool {
-        guard child.isLoaded == false else { return false }
+        guard child.isLoaded == false else {
+            log("Couldn't provide a dependency to the `\(child.name)` child module because it was already loaded",
+                category: .moduleManagement, level: .error)
+            return false
+        }
         let dependency = dataSource.dependency(forChildModuleWithName: child.name)
         return child.canLoad(byInjecting: dependency)
+    }
+    
+    /// Provides a context to the given child module.
+    /// - Returns: `True` if this child module can be started; otherwise, `false`.
+    private func provideContext(to child: RAModule) -> Bool {
+        guard child.isInactive else {
+            log("Couldn't provide a context to the `\(child.name)` child module because it was already started",
+                category: .moduleManagement, level: .error)
+            return false
+        }
+        let context = dataSource.context(forChildModuleWithName: child.name)
+        return child.canStart(within: context)
     }
     
     
@@ -351,7 +441,7 @@ open class RAModule: RAComponent {
     /// Embeds child modules that were built by attaching and loading them.
     private func embedChildren() -> Void {
         builtChildrenThatShouldBeEmbedded.values.forEach { attach($0) }
-        namesOfEmbeddedChildren = builtChildrenThatShouldBeEmbedded.map { $0.key }
+        namesOfEmbeddedChildren = builtChildrenThatShouldBeEmbedded.keys.asArray
         embeddedChildren.values.forEach { $0.load() }
     }
     
@@ -366,8 +456,6 @@ open class RAModule: RAComponent {
     /// then this module cannot be loaded too.
     /// - Returns: `True` if module can be loaded; otherwise, `false`.
     internal final func canLoad(byInjecting dependency: RADependency?) -> Bool {
-        
-        // 1. Build modules that should be embedded
         for childName in namesOfChildrenThatShouldBeEmbedded {
             if let builtChild = buildChild(byName: childName) {
                 builtChildrenThatShouldBeEmbedded[childName] = builtChild
@@ -379,8 +467,6 @@ open class RAModule: RAComponent {
                 }
             }
         }
-        
-        // 2. Ask the children delegats if their modules can be loaded
         for child in builtChildrenThatShouldBeEmbedded.values {
             let childCanLoad = provideDependency(to: child)
             if childCanLoad == false {
@@ -392,15 +478,12 @@ open class RAModule: RAComponent {
                 builtChildrenThatShouldBeEmbedded.removeValue(forKey: child.name)
             }
         }
-            
-        // 3. Ask the delegate of this module if it can be loaded
         let thisModuleCanLoad = lifecycleDelegate.moduleCanLoad(byInjecting: dependency)
         guard thisModuleCanLoad else {
             log("Couldn't be loaded because this module didn't get necessary dependency",
                 category: .moduleLifecycle, level: .error)
             return false
         }
-        
         return true
     }
     
@@ -428,8 +511,6 @@ open class RAModule: RAComponent {
     /// then this module cannot be started too.
     /// - Returns: `True` if module can be started; otherwise, `false`.
     internal final func canStart(within context: RAContext?) -> Bool {
-        
-        // 1. Ask the children delegats if their modules can be started
         for child in embeddedChildren.values {
             let childCanStart = provideContext(to: child)
             if childCanStart == false {
@@ -440,18 +521,14 @@ open class RAModule: RAComponent {
                 }
             }
         }
-        
-        // 2. Ask the delegate of this module if it can be started
         let thisModuleCanStart = lifecycleDelegate.moduleCanStart(within: context)
         guard thisModuleCanStart else {
             log("Couldn't be started because this module didn't get the necessary context",
                 category: .moduleLifecycle, level: .error)
             return false
         }
-        
         return true
     }
-    
     
     /// Notifies this module and its embedded children that they are about to be started.
     internal final func willStart() -> Void {
@@ -748,5 +825,76 @@ public protocol RAModuleLifecycleDelegate where Self: RAAnyObject {
     
     /// Notifies the delegate that the module is about to be unloaded from the parent memory.
     func moduleWillUnload() -> Void
+    
+}
+
+
+
+// MARK: - Sender and Receiver
+
+/// A receiver of a signal.
+///
+/// It's used when modules communicate with each other.
+public enum RAReceiver {
+    
+    /// A global receiver among the entire module tree.
+    ///
+    /// It can be either one or several, or all of modules in the module tree.
+    public enum Global {
+        
+        /// All modules in the entire module tree.
+        case all
+        
+        /// A specific group of modules in the entire module tree.
+        case group([String])
+        
+        /// A specific module in the entire module tree.
+        /// - Note: If several same modules are running among the module tree,
+        /// so each of them is considered.
+        case some(String)
+        
+    }
+    
+    /// A child receiver among the child modules.
+    ///
+    /// It can be either one or several, or all of child modules.
+    public enum Child {
+        
+        /// All child modules of this module.
+        case all
+        
+        /// A specific group of child modules of this module.
+        case group([String])
+        
+        /// A specific child module of this module.
+        case some(String)
+        
+    }
+    
+    /// A receiver that is among the entire module tree.
+    case global(Global)
+    
+    /// A receiver that is the parent module of this module.
+    case parent
+    
+    /// A receiver that is among child modules.
+    case child(Child)
+    
+}
+
+
+/// A sender of a signal.
+///
+/// It's used when modules communicate with each other.
+public enum RASender {
+    
+    /// A sender that is a module from the entire module tree.
+    case global(String)
+    
+    /// A sender that is the parent module of this module.
+    case parent(String)
+    
+    /// A sender that is the child module of this module.
+    case child(String)
     
 }
