@@ -43,3 +43,14 @@ internal extension Dictionary.Values {
     }
     
 }
+
+
+internal extension Dictionary where Key == String, Value == RAModule {
+    
+    /// Returns a boolean value that indicates whether the given module-value exists in this dictionary.
+    func contains(value module: RAModule) -> Bool {
+        guard let child = self[module.name] else { return false }
+        return child === module
+    }
+    
+}
