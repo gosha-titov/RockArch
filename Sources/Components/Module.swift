@@ -27,13 +27,21 @@ open class RAModule: RAComponent {
     /// A boolean value that indicates whether this module is loaded into the parent memory.
     public private(set) var isLoaded: Bool = false
     
-    /// The flag that indicates that the module behavior depends on its embedded child modules.
+    /// A boolean value indicating that the module behavior depends on its embedded child modules.
     ///
     /// If behavior depends on embedded child modules and one of them cannot be loaded or started,
     /// then this module cannot be loaded or started too.
     ///
     /// The default value is `false`.
-    public var behaviorDependsOnEmbeddedModules = false
+    public var isDependentOnEmbeddedModules = false
+    
+    /// A boolean value indicating that the module is unloaded after completing its work.
+    ///
+    /// If this flag is `false` then the parent module keeps this module loaded
+    /// after it becomes inactive (completes its work)
+    ///
+    /// The default value is `true`.
+    public var isUnloadedIfCompleted = true
     
     
     // MARK: Relatives
@@ -57,7 +65,12 @@ open class RAModule: RAComponent {
     /// The dictionary that stores created (and loaded) child modules by their names.
     private var children = [String: RAModule]()
     
-    /// The child modules embedded in this module.
+    /// The child modules that are active.
+    private var activeChildren: [String: RAModule] {
+        return children.filter { $0.value.isActive }
+    }
+    
+    /// The child modules that are embedded in this module.
     private var embeddedChildren: [String: RAModule] {
         return children.filter { namesOfEmbeddedChildren.contains($0.key) }
     }
@@ -99,8 +112,8 @@ open class RAModule: RAComponent {
     /// The object that acts as the lifecycle delegate of this module.
     private let lifecycleDelegate: RAModuleLifecycleDelegate
     
-    /// The object that provides the data for child modules of this module.
-    private let dataSource: RAModuleDataSource
+    /// The object that provides the data for specific modules.
+    private let dataProvider: RAModuleDataProvider
     
     /// The object that handles the data from specific modules.
     private let dataHandler: RAModuleDataHandler
@@ -134,7 +147,7 @@ open class RAModule: RAComponent {
         case .parent:
             guard let parent else {
                 log("Couldn't send the `\(signal)` to the nonexistent parent",
-                    category: "", level: .error)
+                    category: .moduleCommunication, level: .error)
                 return false
             }
             let sender: RASender = .child(name)
@@ -151,7 +164,7 @@ open class RAModule: RAComponent {
             case .some(let childName):
                 guard let child = children.first(where: { $0.name == childName }) else {
                     log("Couldn't send the `\(signal)` to the `\(childName)` nonexistent child",
-                        category: "", level: .error)
+                        category: .moduleCommunication, level: .error)
                     return false
                 }
                 sendSignal(to: child, from: sender)
@@ -168,21 +181,21 @@ open class RAModule: RAComponent {
         case .global(let globalName):
             guard RAModule.all.contains(where: { $0.name == globalName }) else {
                 log("Couldn't handle the `\(signal)` signal from the `\(globalName)` unknown global module",
-                    category: "", level: .error)
+                    category: .moduleCommunication, level: .error)
                 return false
             }
             dataHandler.global(globalName, didPassValue: signal.value, withLabel: signal.label)
         case .parent(let parentName):
             guard let parent, parent.name == parentName else {
                 log("Couldn't handle the `\(signal)` signal from the `\(parentName)` unknown parent module",
-                    category: "", level: .error)
+                    category: .moduleCommunication, level: .error)
                 return false
             }
             dataHandler.parent(parentName, didPassValue: signal.value, withLabel: signal.label)
         case .child(let childName):
-            guard children[childName].hasValue else {
+            guard children.hasKey(childName) else {
                 log("Couldn't handle the `\(signal)` signal from the `\(childName)` unknown child module",
-                    category: "", level: .error)
+                    category: .moduleCommunication, level: .error)
                 return false
             }
             dataHandler.child(childName, didPassValue: signal.value, withLabel: signal.label)
@@ -192,7 +205,7 @@ open class RAModule: RAComponent {
     
     /// Handles a work result from the given child module.
     private func handleResult(from child: RAModule) -> Void {
-        guard child.isActive || child.isSuspended else { return }
+        guard child.isActive else { return }
         if let childResult = child.result() {
             dataHandler.child(child.name, didPassResult: childResult)
         }
@@ -203,7 +216,7 @@ open class RAModule: RAComponent {
         for child in children.values {
             handleResult(from: child)
         }
-        let result = dataSource.result()
+        let result = dataProvider.result()
         return result
     }
     
@@ -215,7 +228,7 @@ open class RAModule: RAComponent {
                 category: .moduleManagement, level: .error)
             return false
         }
-        let dependency = dataSource.dependency(forChildModuleWithName: child.name)
+        let dependency = dataProvider.dependency(forChildModuleWithName: child.name)
         return child.canLoad(byInjecting: dependency)
     }
     
@@ -227,19 +240,104 @@ open class RAModule: RAComponent {
                 category: .moduleManagement, level: .error)
             return false
         }
-        let context = dataSource.context(forChildModuleWithName: child.name)
+        let context = dataProvider.context(forChildModuleWithName: child.name)
         return child.canStart(within: context)
+    }
+    
+    
+    // MARK: - Invoking and Revoking
+    
+    /// Invokes a specific child module by its associated name.
+    ///
+    /// The invoking process represents building, loading and starting a specific child module,
+    /// or starting a child module that was already preloaded.
+    internal final func invokeChild(byName childName: String) -> Bool {
+        guard isLoaded else {
+            log("Couldn't invoke the `\(childName)` child module because this module wasn't loaded",
+                category: .moduleManagement, level: .error)
+            return false
+        }
+        guard isActive else {
+            log("Couldn't invoke the `\(childName)` child module because this module wasn't active",
+                category: .moduleManagement, level: .error)
+            return false
+        }
+        let child: RAModule
+        if let existingChild = children[childName] {
+            guard existingChild.isInactive else {
+                log("Couldn't invoke the `\(childName)` child module because it was already active",
+                    category: .moduleManagement, level: .warning)
+                return false
+            }
+            child = existingChild
+        } else {
+            guard let newChild = buildChild(byName: childName) else {
+                log("Couldn't invoke the `\(childName)` child module because it couldn't be built",
+                    category: .moduleManagement, level: .error)
+                return false
+            }
+            guard load(newChild) else {
+                log("Couldn't invoke the `\(childName)` child module because it couldn't be loaded",
+                    category: .moduleManagement, level: .error)
+                return false
+            }
+            child = newChild
+        }
+        return start(child)
+    }
+    
+    /// Revokes a specific child module by its associated name.
+    ///
+    /// The invoking process represents stopping (and sometimes unloading) child module.
+    internal final func revokeChild(byName childName: String) -> Bool {
+        guard isLoaded else {
+            log("Couldn't revoke the `\(childName)` child module because this module wasn't loaded",
+                category: .moduleManagement, level: .error)
+            return false
+        }
+        guard isActive else {
+            log("Couldn't revoke the `\(childName)` child module because this module wasn't active",
+                category: .moduleManagement, level: .error)
+            return false
+        }
+        guard let child = children[childName] else {
+            log("Couldn't revoke the `\(childName)` unknown child module",
+                category: .moduleManagement, level: .error)
+            return false
+        }
+        guard child.isActive else {
+            log("Couldn't revoke the `\(childName)` child module because it wasn't active",
+                category: .moduleManagement, level: .error)
+            return false
+        }
+        return stop(child) && (child.isUnloadedIfCompleted ? unload(child) : true)
     }
     
     
     // MARK: - Starting and Stoping Modules
     
-    /// Starts the given child module with the option to suspend this module.
-    /// - Parameter moduleShouldBeSuspended: The flag that indicates that this module will be suspended during the starting of the child module.
-    /// - Note: The child module should be inactive before being started.
+    /// Starts the given child module.
+    ///
+    /// The starting process includes providing a context to the given child.
     /// - Returns: `True` if the child module has been started; otherwise, `false`.
     @discardableResult
-    private func start(_ child: RAModule, bySuspendingThisModule moduleShouldBeSuspended: Bool) -> Bool {
+    private func start(_ child: RAModule) -> Bool {
+        guard isLoaded else {
+            log("Couldn't start the `\(child.name)` child module because this module wasn't loaded",
+                category: .moduleManagement, level: .error)
+            return false
+        }
+        guard isActive else {
+            log("Couldn't start the `\(child.name)` child module because this module wasn't active",
+                category: .moduleManagement, level: .error)
+            return false
+        }
+        let childExists = children.contains(value: child)
+        guard childExists else {
+            log("Couldn't start the `\(child.name)` unknown child module",
+                category: .moduleManagement, level: .error)
+            return false
+        }
         guard child.isInactive else {
             log("Couldn't start the `\(child.name)` child module because it was already started",
                 category: .moduleManagement, level: .warning)
@@ -251,24 +349,35 @@ open class RAModule: RAComponent {
                 category: .moduleManagement, level: .error)
             return false
         }
-        if moduleShouldBeSuspended { willSuspend() }
         child.willStart()
-        if moduleShouldBeSuspended { suspend() }
         child.start()
         child.didStart()
-        if moduleShouldBeSuspended { didSuspend() }
         return true
     }
     
-    /// Stops the given child module with the option to resume this module.
+    /// Stops the given child module.
     ///
-    /// The stopping process includes handling the work result of the given child module.
-    /// - Parameter moduleShouldBeResumed: The flag that indicates that this module will be resumed during the stopping of the child module.
-    /// - Note: The child module should be active or suspended before being stopping.
+    /// The stopping process includes handling a work result of the given child module.
     /// - Returns: `True` if the child module has been stopped; otherwise, `false`.
     @discardableResult
-    private func stop(_ child: RAModule, byResumingThisModule moduleShouldBeResumed: Bool) -> Bool {
-        guard child.isActive || child.isSuspended else {
+    private func stop(_ child: RAModule) -> Bool {
+        guard isLoaded else {
+            log("Couldn't stop the `\(child.name)` child module because this module wasn't loaded",
+                category: .moduleManagement, level: .error)
+            return false
+        }
+        guard isActive else {
+            log("Couldn't stop the `\(child.name)` child module because this module wasn't active",
+                category: .moduleManagement, level: .error)
+            return false
+        }
+        let childExists = children.contains(value: child)
+        guard childExists else {
+            log("Couldn't stop the `\(child.name)` unknown child module",
+                category: .moduleManagement, level: .error)
+            return false
+        }
+        guard child.isActive else {
             log("Couldn't stop the `\(child.name)` child module because it was inactive",
                 category: .moduleManagement,
                 level: .warning)
@@ -276,14 +385,7 @@ open class RAModule: RAComponent {
         }
         child.willStop()
         handleResult(from: child)
-        if moduleShouldBeResumed {
-            willResume()
-        }
         child.stop()
-        if moduleShouldBeResumed {
-            resume()
-            didResume()
-        }
         child.didStop()
         return true
     }
@@ -301,7 +403,7 @@ open class RAModule: RAComponent {
                 category: .moduleManagement, level: .error)
             return false
         }
-        let childDoesNotExist = children[childName].isNil
+        let childDoesNotExist = !children.hasKey(childName)
         guard childDoesNotExist else {
             log("Couldn't load the `\(childName)` child module because it was already loaded into memory",
                 category: .moduleManagement, level: .warning)
@@ -343,7 +445,7 @@ open class RAModule: RAComponent {
     /// - Parameter child: The module that will become a child of this module during the loading process.
     /// - Returns: `True` if the given module was loaded successfully; otherwise, `false`.
     private func load(_ child: RAModule) -> Bool {
-        let childDoesNotExist = children[child.name].isNil
+        let childDoesNotExist = !children.contains(value: child)
         guard childDoesNotExist else {
             log("Couldn't load the `\(child.name)` child module because it was already in the module tree",
                 category: .moduleManagement, level: .error)
@@ -367,7 +469,7 @@ open class RAModule: RAComponent {
     /// - Parameter child: The module that will no longer be a child of this module during the unloading process.
     /// - Returns: `True` if the given module was unloaded successfully; otherwise, `false`.
     private func unload(_ child: RAModule) -> Bool {
-        let childExists = children[child.name].hasValue
+        let childExists = children.contains(value: child)
         guard childExists else {
             log("Couldn't unload the `\(child.name)` child module from the module tree because it was not in it",
                 category: .moduleManagement, level: .warning)
@@ -401,10 +503,7 @@ open class RAModule: RAComponent {
                 category: .moduleManagement, level: .error)
             return nil
         }
-        guard let builtModule = builder.buildChildModule(byName: childName) else {
-            return nil
-        }
-        return builtModule
+        return builder.buildChildModule(byName: childName)
     }
     
     
@@ -460,7 +559,7 @@ open class RAModule: RAComponent {
             if let builtChild = buildChild(byName: childName) {
                 builtChildrenThatShouldBeEmbedded[childName] = builtChild
             } else {
-                guard behaviorDependsOnEmbeddedModules == false else {
+                guard isDependentOnEmbeddedModules == false else {
                     log("Couldn't be loaded because the `\(childName)` embedded module wasn't built",
                         category: .moduleLifecycle, level: .error)
                     return false
@@ -470,7 +569,7 @@ open class RAModule: RAComponent {
         for child in builtChildrenThatShouldBeEmbedded.values {
             let childCanLoad = provideDependency(to: child)
             if childCanLoad == false {
-                guard behaviorDependsOnEmbeddedModules == false else {
+                guard isDependentOnEmbeddedModules == false else {
                     log("Couldn't be loaded because one of the embedded modules wasn't loaded",
                         category: .moduleLifecycle, level: .error)
                     return false
@@ -514,7 +613,7 @@ open class RAModule: RAComponent {
         for child in embeddedChildren.values {
             let childCanStart = provideContext(to: child)
             if childCanStart == false {
-                guard behaviorDependsOnEmbeddedModules == false else {
+                guard isDependentOnEmbeddedModules == false else {
                     log("Couldn't be started because the `\(child.name)` embedded child module couldn't be started",
                         category: .moduleLifecycle, level: .error)
                     return false
@@ -550,70 +649,24 @@ open class RAModule: RAComponent {
     }
     
     
-    // MARK: Suspending
-    
-    /// Notifies this module and its embedded children that they are about to be suspended.
-    internal final func willSuspend() -> Void {
-        embeddedChildren.values.forEach { $0.willSuspend() }
-        lifecycleDelegate.moduleWillSuspend()
-    }
-    
-    /// Suspends this module and its embedded child modules by making all of them suspended.
-    ///
-    /// Called when this module starts a child module.
-    internal final func suspend() -> Void {
-        embeddedChildren.values.forEach { $0.suspend() }
-        state = .suspended
-        log("Suspended working", category: .moduleLifecycle)
-    }
-    
-    /// Notifies this module and its embedded children that they are suspended.
-    internal final func didSuspend() -> Void {
-        embeddedChildren.values.forEach { $0.didSuspend() }
-        lifecycleDelegate.moduleDidSuspend()
-    }
-    
-    
-    // MARK: Resuming
-    
-    /// Notifies this module and its embedded children that they are about to be resumed.
-    internal final func willResume() -> Void {
-        embeddedChildren.values.forEach { $0.willResume() }
-        lifecycleDelegate.moduleWillResume()
-    }
-    
-    /// Called when a child module stops its work.
-    internal final func resume() -> Void {
-        embeddedChildren.values.forEach { $0.resume() }
-        state = .active
-        log("Resumed working", category: .moduleLifecycle)
-    }
-    
-    /// Notifies this module and its embedded children that they are resumed.
-    internal final func didResume() -> Void {
-        embeddedChildren.values.forEach { $0.didResume() }
-        lifecycleDelegate.moduleDidResume()
-    }
-    
-    
     // MARK: Stopping
     
     /// Notifies this module and its embedded children that they are about to be stopped.
     internal final func willStop() -> Void {
-        embeddedChildren.values.forEach { $0.willStop() }
+        activeChildren.values.forEach { $0.willStop() }
         lifecycleDelegate.moduleWillStop()
     }
     
     /// Called when this module should stop its work for some reason.
     internal final func stop() -> Void {
-        embeddedChildren.values.forEach { $0.stop() }
+        activeChildren.values.forEach { $0.stop() }
         state = .inactive
         log("Stopped working", category: .moduleLifecycle)
     }
     
     /// Notifies this module and its embedded children that they are stopped.
     internal final func didStop() -> Void {
-        embeddedChildren.values.forEach { $0.didStop() }
+        activeChildren.values.forEach { $0.didStop() }
         lifecycleDelegate.moduleDidStop()
     }
     
@@ -735,16 +788,12 @@ open class RAModule: RAComponent {
         self.builder = builder
         lifecycleDelegate = interactor
         dataHandler = interactor
-        dataSource = interactor
+        dataProvider = interactor
         log("Created", category: .moduleLifecycle)
-        
         RALeakDetector.register(self)
-        
-        // Configuring
         assemble()
         _setup()
     }
-    
     
     deinit {
         log("Deleted", category: .moduleLifecycle)
@@ -754,8 +803,8 @@ open class RAModule: RAComponent {
 
 
 
-/// The methods adopted by the object you use to provide data for a specific module.
-public protocol RAModuleDataSource where Self: RAAnyObject {
+/// The methods adopted by the object you use to provide data for specific modules.
+public protocol RAModuleDataProvider where Self: RAAnyObject {
     
     /// Provides a dependency for a specific child module when it loads into memory.
     func dependency(forChildModuleWithName childName: String) -> RADependency?
@@ -763,7 +812,7 @@ public protocol RAModuleDataSource where Self: RAAnyObject {
     /// Provides a context for a specific child module when it starts.
     func context(forChildModuleWithName childName: String) -> RAContext?
     
-    /// Provides a result of the work of the module.
+    /// Provides the work result of the module.
     func result() -> RAResult?
     
 }
@@ -790,13 +839,13 @@ public protocol RAModuleDataHandler where Self: RAAnyObject {
 /// The methods adopted by the object you use to manage the lifecycle of a specific module.
 public protocol RAModuleLifecycleDelegate where Self: RAAnyObject {
     
-    /// Asks the delegate with what dependency it can be loaded into the parent memory.
+    /// Asks the delegate what dependency is required in order for the module to be loaded.
     func moduleCanLoad(byInjecting dependency: RADependency?) -> Bool
     
     /// Notifies the delegate that the module is loaded into the parent memory.
     func moduleDidLoad() -> Void
     
-    /// Asks the delegate with what context it can be started.
+    /// Asks the delegate what context is required in order for the module to be started.
     func moduleCanStart(within context: RAContext?) -> Bool
     
     /// Notifies the delegate that the module is about to be started.
@@ -804,18 +853,6 @@ public protocol RAModuleLifecycleDelegate where Self: RAAnyObject {
     
     /// Notifies the delegate that the module is started.
     func moduleDidStart() -> Void
-    
-    /// Notifies the delegate that the module is about to be suspended.
-    func moduleWillSuspend() -> Void
-    
-    /// Notifies the delegate that the module is suspended.
-    func moduleDidSuspend() -> Void
-    
-    /// Notifies the delegate that the module is about to be resumed.
-    func moduleWillResume() -> Void
-    
-    /// Notifies the delegate that the module is resumed.
-    func moduleDidResume() -> Void
     
     /// Notifies the delegate that the module is about to be stopped.
     func moduleWillStop() -> Void
