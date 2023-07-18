@@ -1,8 +1,34 @@
+//
+//  +––––––––––––––––+           +–––––––––––––––––+
+//  | class RAModule |----------→| class RABuilder |
+//  |                |← - - - - -|                 |
+//  +––––––––––––––––+           +–––––––––––––––––+
+//   ↑ |   ↑ |   ↑ |
+//     |     |   | ⌎-------------------------------------------------⌍
+//   | |   | |   ⌎ - - - - - - - - - - - - - - - - - - - - - - - - ⌍ |
+//     |     |                                                       |
+//   | |   | ⌎----------------------⌍                              | |
+//     |   ⌎- - - - - - - - - - - ⌍ |                                |
+//   | ↓                          | ↓                              | ↓
+//  +––––––––––––––––+           +––––––––––––––––––––+           +––––––––––––––+
+//  | class RARouter |- - - - - →| class RAInteractor |- - - - - →| class RAView |
+//  |                |← - - - - -|                    |← - - - - -|              |
+//  +––––––––––––––––+           +––––––––––––––––––––+           +––––––––––––––+
+//         |                                                             ↑
+//         ⌎ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - ⌏
+//
+
+
 open class RAModule: RAComponent {
     
     // MARK: General Info
     
     /// A string associated with the name of this module.
+    ///
+    /// You usually name modules like: `Main`, `Feed`, `Chats`, `Settings`, `Profile`, `Appearance` and so on.
+    /// It's mainly used to build and start modules, to communicate and interact with other modules, to log messages.
+    /// - Note: Names are an important part of the architecture.
+    /// In order to avoid ambiguities,  **name modules uniquely**.
     public let name: String
     
     /// A textual representation of the type of this object.
@@ -11,6 +37,9 @@ open class RAModule: RAComponent {
     public let type: String = "Module"
     
     /// The current state of this module.
+    ///
+    /// The state represents whether the module is currently running or not.
+    /// The default value is `.inactive`.
     public private(set) var state: RAComponentState = .inactive
     
     /// A string containing the full path to this module.
@@ -24,10 +53,10 @@ open class RAModule: RAComponent {
         else { return name }
     }
     
-    /// A boolean value that indicates whether this module is loaded into the parent memory.
+    /// A boolean value that indicates whether this module is loaded into the module tree.
     public private(set) var isLoaded: Bool = false
     
-    /// A boolean value indicating that the module behavior depends on its embedded child modules.
+    /// A boolean value that indicates whether the module behavior depends on its embedded child modules.
     ///
     /// If behavior depends on embedded child modules and one of them cannot be loaded or started,
     /// then this module cannot be loaded or started too.
@@ -35,10 +64,10 @@ open class RAModule: RAComponent {
     /// The default value is `false`.
     public var isDependentOnEmbeddedModules = false
     
-    /// A boolean value indicating that the module is unloaded after completing its work.
+    /// A boolean value that indicates whether this module is unloaded after completing its work.
     ///
     /// If this flag is `false` then the parent module keeps this module loaded
-    /// after it becomes inactive (completes its work)
+    /// after this module completes its work (becomes inactive).
     ///
     /// The default value is `true`.
     public var isUnloadedIfCompleted = true
@@ -49,7 +78,7 @@ open class RAModule: RAComponent {
     /// The root module of the application.
     internal private(set) static var root: RAModule? = nil
     
-    /// An array containing all modules in the module tree.
+    /// An array containing all modules of the module tree.
     internal static var all: [RAModule] {
         return root?.all ?? []
     }
@@ -63,7 +92,7 @@ open class RAModule: RAComponent {
     internal weak var parent: RAModule?
     
     /// The dictionary that stores created (and loaded) child modules by their names.
-    private var children = [String: RAModule]()
+    internal private(set) var children = [String: RAModule]()
     
     /// The child modules that are active.
     private var activeChildren: [String: RAModule] {
@@ -71,7 +100,7 @@ open class RAModule: RAComponent {
     }
     
     /// The child modules that are embedded in this module.
-    private var embeddedChildren: [String: RAModule] {
+    internal final var embeddedChildren: [String: RAModule] {
         return children.filter { namesOfEmbeddedChildren.contains($0.key) }
     }
     
@@ -118,8 +147,18 @@ open class RAModule: RAComponent {
     /// The object that handles the data from specific modules.
     private let dataHandler: RAModuleDataHandler
     
+    // MARK: - Interactions between Modules
     
-    // MARK: - Communicating
+    /// Returns a router of a specific related module.
+    internal final func router(of relative: RARelative) -> RARouter? {
+        switch relative {
+        case .child(let childName): return children[childName]?.router
+        case .parent: return parent?.router
+        }
+    }
+    
+    
+    // MARK: - Communication between Modules
     
     /// Sends the given signal to a specific receiver.
     /// - Returns: `True` if the receiver (or at least one of them) has handled this signal; otherwise, `false`.
@@ -229,7 +268,7 @@ open class RAModule: RAComponent {
             return false
         }
         let dependency = dataProvider.dependency(forChildModuleWithName: child.name)
-        return child.canLoad(byInjecting: dependency)
+        return child.canLoad(with: dependency)
     }
     
     /// Provides a context to the given child module.
@@ -241,7 +280,7 @@ open class RAModule: RAComponent {
             return false
         }
         let context = dataProvider.context(forChildModuleWithName: child.name)
-        return child.canStart(within: context)
+        return child.canStart(with: context)
     }
     
     
@@ -249,7 +288,7 @@ open class RAModule: RAComponent {
     
     /// Invokes a specific child module by its associated name.
     ///
-    /// The invoking process represents building, loading and starting a specific child module,
+    /// The invoking process represents the building, loading and starting a specific child module,
     /// or starting a child module that was already preloaded.
     internal final func invokeChild(byName childName: String) -> Bool {
         guard isLoaded else {
@@ -288,7 +327,7 @@ open class RAModule: RAComponent {
     
     /// Revokes a specific child module by its associated name.
     ///
-    /// The invoking process represents stopping (and sometimes unloading) child module.
+    /// The invoking process represents the stopping (and sometimes unloading) child module.
     internal final func revokeChild(byName childName: String) -> Bool {
         guard isLoaded else {
             log("Couldn't revoke the `\(childName)` child module because this module wasn't loaded",
@@ -463,7 +502,7 @@ open class RAModule: RAComponent {
         return true
     }
     
-    /// Unloads the given module from memory.
+    /// Unloads the given module from memory by detaching it from the module tree.
     ///
     /// The unloading process represents the detaching the given module from the module tree by removing it from children of this module and deconfiguring it.
     /// - Parameter child: The module that will no longer be a child of this module during the unloading process.
@@ -520,7 +559,7 @@ open class RAModule: RAComponent {
     ///     }
     ///
     /// - Note: The embedded child module becomes built and loaded only during the loading of this module.
-    /// That is, this method should be called in the `setup()` method, because it's called
+    /// That is, this method should be called in the `setup()` method.
     public final func embedChildModule(byName childName: String) -> Void {
         guard isLoaded == false else {
             log("Couldn't embed the `\(childName)` child module because this module was loaded",
@@ -554,7 +593,7 @@ open class RAModule: RAComponent {
     /// - Note: If the module behavior depends on its embedded child modules and one of these modules cannot be built or loaded,
     /// then this module cannot be loaded too.
     /// - Returns: `True` if module can be loaded; otherwise, `false`.
-    internal final func canLoad(byInjecting dependency: RADependency?) -> Bool {
+    internal final func canLoad(with dependency: RADependency?) -> Bool {
         for childName in namesOfChildrenThatShouldBeEmbedded {
             if let builtChild = buildChild(byName: childName) {
                 builtChildrenThatShouldBeEmbedded[childName] = builtChild
@@ -577,7 +616,7 @@ open class RAModule: RAComponent {
                 builtChildrenThatShouldBeEmbedded.removeValue(forKey: child.name)
             }
         }
-        let thisModuleCanLoad = lifecycleDelegate.moduleCanLoad(byInjecting: dependency)
+        let thisModuleCanLoad = lifecycleDelegate.moduleCanLoad(with: dependency)
         guard thisModuleCanLoad else {
             log("Couldn't be loaded because this module didn't get necessary dependency",
                 category: .moduleLifecycle, level: .error)
@@ -609,7 +648,7 @@ open class RAModule: RAComponent {
     /// - Note: If the module behavior depends on its embedded child modules and one of these modules cannot be started,
     /// then this module cannot be started too.
     /// - Returns: `True` if module can be started; otherwise, `false`.
-    internal final func canStart(within context: RAContext?) -> Bool {
+    internal final func canStart(with context: RAContext?) -> Bool {
         for child in embeddedChildren.values {
             let childCanStart = provideContext(to: child)
             if childCanStart == false {
@@ -620,7 +659,7 @@ open class RAModule: RAComponent {
                 }
             }
         }
-        let thisModuleCanStart = lifecycleDelegate.moduleCanStart(within: context)
+        let thisModuleCanStart = lifecycleDelegate.moduleCanStart(with: context)
         guard thisModuleCanStart else {
             log("Couldn't be started because this module didn't get the necessary context",
                 category: .moduleLifecycle, level: .error)
@@ -721,17 +760,28 @@ open class RAModule: RAComponent {
     
     /// Setups this module before it starts working.
     ///
-    /// This method is called when this module is assembled but not yet loaded into memory.
-    /// You usually override this method to perform additional initialization on your private properties.
+    /// This method is called when this module is assembled but not yet loaded into the module tree.
+    /// You usually override this method to perform additional initialization on your properties.
+    ///
+    /// Most ofter you use this method in the following way:
+    ///
+    ///     overrive func setup() -> Void {
+    ///         embedChildModule(byName: "Feed")
+    ///         embedChildModule(byName: "Messages")
+    ///         embedChildModule(byName: "Settings")
+    ///         isDependentOnEmbeddedModules = true
+    ///         isUnloadedIfCompleted = false
+    ///     }
+    ///
     /// You don't need to call the `super` method.
-    open func setup() {}
+    open func setup() -> Void {}
     
     /// Cleans this module after it stops working.
     ///
     /// This method is called when this module is about to be unloaded from memory and disassembled.
     /// You usually override this method to clean your properties.
     /// You don't need to call the `super` method.
-    open func clean() {}
+    open func clean() -> Void {}
     
     /// Performs internal setup for this module before it starts working by calling setup methods of this module and its inner components.
     private func _setup() -> Void {
@@ -840,13 +890,13 @@ public protocol RAModuleDataHandler where Self: RAAnyObject {
 public protocol RAModuleLifecycleDelegate where Self: RAAnyObject {
     
     /// Asks the delegate what dependency is required in order for the module to be loaded.
-    func moduleCanLoad(byInjecting dependency: RADependency?) -> Bool
+    func moduleCanLoad(with dependency: RADependency?) -> Bool
     
     /// Notifies the delegate that the module is loaded into the parent memory.
     func moduleDidLoad() -> Void
     
     /// Asks the delegate what context is required in order for the module to be started.
-    func moduleCanStart(within context: RAContext?) -> Bool
+    func moduleCanStart(with context: RAContext?) -> Bool
     
     /// Notifies the delegate that the module is about to be started.
     func moduleWillStart() -> Void
@@ -933,5 +983,23 @@ public enum RASender {
     
     /// A sender that is the child module of this module.
     case child(String)
+    
+}
+
+
+
+/// A relative that specifies a relationship between two modules
+///
+/// For example, the **A** module loads the **B** module into its memory.
+/// That is, **A** becomes a **parent** for **B**, and **B** becomes a **child** for **A**.
+///
+/// It's used to avoid overloading methods.
+internal enum RARelative: Equatable {
+    
+    /// A child of this module.
+    case child(String)
+    
+    /// A parent of this module.
+    case parent
     
 }
