@@ -1,25 +1,35 @@
+// Implementation notes
+// ====================
+//
+// The module uses a data structure like this:
 //
 //  +––––––––––––––––+           +–––––––––––––––––+
-//  | class RAModule |----------→| class RABuilder |
+//  |[class RAModule]|----------→|[class RABuilder]|
 //  |                |← - - - - -|                 |
-//  +––––––––––––––––+           +–––––––––––––––––+
+//  | interactor     |           | _module         |
+//  | router         |           +–––––––––––––––––+
+//  | view           |
+//  | builder        |
+//  +––––––––––––––––+
 //   ↑ |   ↑ |   ↑ |
-//     |     |   | ⌎-------------------------------------------------⌍
-//   | |   | |   ⌎ - - - - - - - - - - - - - - - - - - - - - - - - ⌍ |
-//     |     |                                                       |
-//   | |   | ⌎----------------------⌍                              | |
-//     |   ⌎- - - - - - - - - - - ⌍ |                                |
-//   | ↓                          | ↓                              | ↓
+//     |     |   | ⌎--------------------------------------------------⌍
+//   | |   | |   ⌎ - - - - - - - - - - - - - - - - - - - - - - - - -⌍ |
+//     |     |                                                        |
+//   | |   | ⌎-----------------------⌍                              | |
+//     |   ⌎- - - - - - - - - - - -⌍ |                                |
+//   | ↓                           | ↓                              | ↓
 //  +––––––––––––––––+           +––––––––––––––––––––+           +––––––––––––––+
-//  | class RARouter |- - - - - →| class RAInteractor |- - - - - →| class RAView |
+//  |[class RARouter]|           |[class RAInteractor]|- - - - - →|[class RAView]|
 //  |                |← - - - - -|                    |← - - - - -|              |
-//  +––––––––––––––––+           +––––––––––––––––––––+           +––––––––––––––+
-//         |                                                             ↑
+//  | _module        |           | _module            |           | _module      |
+//  | viewController |           | _router            |           | _interactor  |
+//  +––––––––––––––––+           | _view              |           +––––––––––––––+
+//         |                     +––––––––––––––––––––+                  ↑
 //         ⌎ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - ⌏
 //
 
 
-open class RAModule: RAComponent {
+open class RAModule: RAModuleInterface {
     
     // MARK: General Info
     
@@ -76,6 +86,9 @@ open class RAModule: RAComponent {
     // MARK: Relatives
     
     /// The root module of the application.
+    ///
+    /// The module tree grows (begins) with the root module.
+    /// In order for some module to become root, you call the `launch(from:)` method.
     internal private(set) static var root: RAModule? = nil
     
     /// An array containing all modules of the module tree.
@@ -148,6 +161,14 @@ open class RAModule: RAComponent {
     private let dataHandler: RAModuleDataHandler
     
     // MARK: - Interactions between Modules
+    
+    /// Returns an interactor of a specific related module.
+    internal final func interactor(of relative: RARelative) -> RAInteractor? {
+        switch relative {
+        case .child(let childName): return children[childName]?.interactor
+        case .parent: return parent?.interactor
+        }
+    }
     
     /// Returns a router of a specific related module.
     internal final func router(of relative: RARelative) -> RARouter? {
@@ -723,7 +744,7 @@ open class RAModule: RAComponent {
     /// Called when this module is in the process of being removed from the module tree.
     internal final func unload() -> Void {
         children.values.forEach { $0.unload() }
-        _clean()
+        deconfigure()
         disassemble()
         isLoaded = false
         state = .inactive
@@ -739,9 +760,9 @@ open class RAModule: RAComponent {
         view?._interactor = interactor
         interactor._router = router
         interactor._view = view
-        interactor.module = self
-        router.module = self
-        view?.module = self
+        interactor._module = self
+        router._module = self
+        view?._module = self
     }
     
     /// Disassembles this module by disconnecting components from each other and from itself.
@@ -750,9 +771,9 @@ open class RAModule: RAComponent {
         view?._interactor = nil
         interactor._router = nil
         interactor._view = nil
-        interactor.module = nil
-        router.module = nil
-        view?.module = nil
+        interactor._module = nil
+        router._module = nil
+        view?._module = nil
     }
     
     
@@ -784,20 +805,20 @@ open class RAModule: RAComponent {
     open func clean() -> Void {}
     
     /// Performs internal setup for this module before it starts working by calling setup methods of this module and its inner components.
-    private func _setup() -> Void {
+    private func configure() -> Void {
         setup()
-        builder?._setup()
-        router._setup()
-        view?._setup()
-        interactor._setup()
+        builder?.setup()
+        router.setup()
+        view?.setup()
+        interactor.setup()
     }
     
     /// Performs internal clean for this module after it stops working by calling the setup method of this module and its inner components.
-    private func _clean() -> Void {
-        interactor._clean()
-        view?._clean()
-        router._clean()
-        builder?._clean()
+    private func deconfigure() -> Void {
+        interactor.clean()
+        view?.clean()
+        router.clean()
+        builder?.clean()
         clean()
         children.removeAll()
         namesOfEmbeddedChildren.removeAll()
@@ -842,12 +863,21 @@ open class RAModule: RAComponent {
         log("Created", category: .moduleLifecycle)
         RALeakDetector.register(self)
         assemble()
-        _setup()
+        configure()
     }
     
     deinit {
         log("Deleted", category: .moduleLifecycle)
     }
+    
+}
+
+
+
+public protocol RAModuleInterface: RAComponent {
+    
+    /// A boolean value that indicates whether this module is loaded into the module tree.
+    var isLoaded: Bool { get }
     
 }
 
