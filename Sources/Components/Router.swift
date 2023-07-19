@@ -2,6 +2,8 @@ import UIKit
 
 open class RARouter: RAComponent, RAIntegratable {
     
+    // MARK: - Properties
+    
     /// A module into which this router is integrated.
     public final var module: RAModuleInterface? { _module }
     
@@ -12,6 +14,9 @@ open class RARouter: RAComponent, RAIntegratable {
     ///
     /// This property has the "Router" value.
     public let type: String = "Router"
+    
+    /// The transition with which this module was shown.
+    public internal(set) var transition: Transition = .none
     
     
     // MARK: View Controllers
@@ -39,6 +44,53 @@ open class RARouter: RAComponent, RAIntegratable {
     }
     
     
+    // MARK: - Routing
+    
+    /// Presents a view controller of a specific child module modally.
+    ///
+    /// You can present a child module only if there's at least one view controller in this flow.
+    /// When you do this, you load, start and present the child module.
+    /// - Note: If you present the child module that has no view, then you just load it and see the error in log messages.
+    /// - Parameter childName: The associated name of a module to load, start and present.
+    /// - Parameter animated: Specify `true` to animate the transition, or `false` if you do not want the transition to be animated.
+    /// The default value is `true.`
+    /// - Parameter completion: The block to execute after the presentation finishes.
+    /// This block has no return value and takes no parameters. The default value is `nil.`
+    /// - Returns: `True` if the child module has been presented; otherwise, `false`.
+    @discardableResult
+    public final func presentChildModule(byName childName: String, animated: Bool = true, completion: (() -> Void)? = nil) -> Bool {
+        guard let module = _module else {
+            log("Couldn't present the \(childName) child module because this router didn't integrated into any module",
+                category: .moduleRouting, level: .error)
+            return false
+        }
+        guard let viewControllerThatPresents = firstViewController else {
+            log("Couldn't present the \(childName) child module because this flow didn't have any view controller",
+                category: .moduleRouting, level: .error)
+            return false
+        }
+        guard module.loadChild(byName: childName) else {
+            log("Couldn't present the \(childName) child module because it wasn't be loaded",
+                category: .moduleRouting, level: .error)
+            return false
+        }
+        guard let child = module.router(of: .child(childName)), let childViewController = child.viewController else {
+            log("Couldn't present the \(childName) child module because it didn't have a view",
+                category: .moduleRouting,
+                level: .error)
+            return false
+        }
+        guard module.invokeChild(byName: childName) else {
+            log("Couldn't present the \(childName) child module because it wasn't be invoked",
+                category: .moduleRouting, level: .error)
+            return false
+        }
+        viewControllerThatPresents.present(childViewController, animated: animated, completion: completion)
+        child.transition = .presented
+        return true
+    }
+    
+    
     // MARK: - Lifecycle
     
     /// Setups this router before it starts working.
@@ -56,9 +108,28 @@ open class RARouter: RAComponent, RAIntegratable {
     open func clean() -> Void {}
     
     
-    // MARK: - Init
+    // MARK: - Init and Deinit
     
     /// Creates a router instance.
-    public init() {}
+    public init() {
+        RALeakDetector.register(self)
+    }
+    
+    deinit {
+        RALeakDetector.release(self)
+    }
+    
+}
+
+
+
+extension RARouter {
+    
+    public enum Transition {
+        case presented
+        case pushed
+        case selected
+        case none
+    }
     
 }
