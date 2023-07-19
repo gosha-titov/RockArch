@@ -1,50 +1,64 @@
+import UIKit
+
 open class RARouter: RAComponent, RAIntegratable {
     
     /// A module into which this router is integrated.
-    public weak var module: RAModule?
+    public final var module: RAModuleInterface? { _module }
+    
+    /// An internal module of this router
+    internal weak var _module: RAModule?
     
     /// A textual representation of the type of this object.
     ///
     /// This property has the "Router" value.
     public let type: String = "Router"
     
+    
+    // MARK: View Controllers
+    
+    /// A view controller of this module.
+    internal weak var viewController: UIViewController?
+    
+    /// A view controller of this module casted to the navigation controller.
+    internal final var navigationController: UINavigationController? {
+        return viewController as? UINavigationController
+    }
+    
+    /// A view controller of this module casted to the tab bar controller.
+    internal final var tabBarController: UITabBarController? {
+        return viewController as? UITabBarController
+    }
+    
+    /// A navigation controller that pushed a view controller of this module.
+    internal weak var sharedNavigationController: UINavigationController?
+    
+    /// A first view controller found in this flow.
+    internal final var firstViewController: UIViewController? {
+        let parent = _module?.router(of: .parent)
+        return viewController ?? parent?.firstViewController
+    }
+    
+    
+    // MARK: - Lifecycle
+    
     /// Setups this router before it starts working.
     ///
-    /// This method is called when the module into which this router integrated is loaded into memory and assembled.
+    /// This method is called when the module into which this router integrated is assembled but not yet loaded into the module tree.
     /// You usually override this method to perform additional initialization on your private properties.
     /// You don't need to call the `super` method.
-    open func setup() {}
+    open func setup() -> Void {}
     
     /// Cleans this router after it stops working.
     ///
-    /// This method is called when the module into which this router integrated is about to be unloaded from memory and disassembled.
+    /// This method is called when the module into which this router integrated is about to be unloaded from the module tree and disassembled.
     /// You usually override this method to clean your properties.
     /// You don't need to call the `super` method.
-    open func clean() {}
+    open func clean() -> Void {}
     
-    /// Performs internal setup for this router before it starts working.
-    ///
-    /// Only the module into which this router integrated should call this method when it is loaded into memory and assembled.
-    /// - Note: The module should not call the `setup()` method directly, so it calls this internal `_setup()` method.
-    internal final func _setup() -> Void {
-        defer { setup() }
-        RALeakDetector.register(self)
-    }
     
-    /// Performs internal cleaning for this router after it stops working.
-    ///
-    /// Only the module into which this router integrated should call this method when it is about to be unloaded from memory and disassembled.
-    /// - Note: The module should not call the `clean()` method directly, so it calls this internal `_clean()` method.
-    internal final func _clean() -> Void {
-        clean() // Should be called first
-    }
-    
+    // MARK: - Init
     
     /// Creates a router instance.
     public init() {}
     
 }
-
-
-
-internal final class RAStubRouter: RARouter {}
