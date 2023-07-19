@@ -48,17 +48,25 @@ open class RARouter: RAComponent, RAIntegratable {
     
     /// Presents a view controller of a specific child module modally.
     ///
+    /// The presentation represents the loading, building and presenting a child module.
     /// You can present a child module only if there's at least one view controller in this flow.
-    /// When you do this, you load, start and present the child module.
+    ///
     /// - Note: If you present the child module that has no view, then you just load it and see the error in log messages.
-    /// - Parameter childName: The associated name of a module to load, start and present.
+    ///
+    /// - Parameter childName: The associated name of a module to be present.
     /// - Parameter animated: Specify `true` to animate the transition, or `false` if you do not want the transition to be animated.
     /// The default value is `true.`
     /// - Parameter completion: The block to execute after the presentation finishes.
     /// This block has no return value and takes no parameters. The default value is `nil.`
+    ///
     /// - Returns: `True` if the child module has been presented; otherwise, `false`.
     @discardableResult
     public final func presentChildModule(byName childName: String, animated: Bool = true, completion: (() -> Void)? = nil) -> Bool {
+        guard isActive else {
+            log("Couldn't present the \(childName) child module because this router wasn't active",
+                category: .moduleRouting, level: .error)
+            return false
+        }
         guard let module = _module else {
             log("Couldn't present the \(childName) child module because this router didn't integrated into any module",
                 category: .moduleRouting, level: .error)
@@ -69,12 +77,12 @@ open class RARouter: RAComponent, RAIntegratable {
                 category: .moduleRouting, level: .error)
             return false
         }
-        guard module.loadChild(byName: childName) else {
+        guard module.loadChild(byName: childName), let child = module.router(of: .child(childName)) else {
             log("Couldn't present the \(childName) child module because it wasn't be loaded",
                 category: .moduleRouting, level: .error)
             return false
         }
-        guard let child = module.router(of: .child(childName)), let childViewController = child.viewController else {
+        guard let childViewController = child.viewController else {
             log("Couldn't present the \(childName) child module because it didn't have a view",
                 category: .moduleRouting,
                 level: .error)
@@ -87,6 +95,53 @@ open class RARouter: RAComponent, RAIntegratable {
         }
         viewControllerThatPresents.present(childViewController, animated: animated, completion: completion)
         child.transition = .presented
+        return true
+    }
+    
+    /// Pushes a view controller of a specific child module onto a navigation stack.
+    ///
+    /// The pushing process represents the loading, starting and pushing a child module.
+    /// You can push a child module in two cases: (1) if this module has a view that is a navigation controller,
+    /// or (2) if this module is pushed by another navigation controller.
+    ///
+    /// You can also push the child module that has no view. In this case, you build, load, start it and then share a navigation controller to it.
+    ///
+    /// - Note: When the **A** module pushes the **B** child module, **A** shares a navigation controller to **B**.
+    /// That is, **B** is also able to push its child modules.
+    ///
+    /// - Parameter childName: The associated name of a module to be pushed.
+    /// - Parameter animated: Specify `true` to animate the transition or `false` if you do not want the transition to be animated.
+    /// The default value is `true.`
+    /// - Parameter completion: The block to execute after the pushing finishes.
+    /// This block has no return value and takes no parameters. The default value is `nil.`
+    ///
+    /// - Returns: `True` if the child module has been pushed; otherwise, `false`.
+    @discardableResult
+    public final func pushChildModule(byName childName: String, animated: Bool = true, completion: (() -> Void)? = nil) -> Bool {
+        guard isActive else {
+            log("Couldn't push the \(childName) child module because this router wasn't active",
+                category: .moduleRouting, level: .error)
+            return false
+        }
+        guard let module = _module else {
+            log("Couldn't push the \(childName) child module because this router didn't integrated into any module",
+                category: .moduleRouting, level: .error)
+            return false
+        }
+        guard let navigationController = navigationController ?? sharedNavigationController else {
+            log("Couldn't push the \(childName) child module because this router didn't have any navigation controller",
+                category: .moduleRouting, level: .error)
+            return false
+        }
+        guard module.invokeChild(byName: childName), let child = module.router(of: .child(childName)) else {
+            log("Couldn't push the \(childName) child module because it wasn't be invoked",
+                category: .moduleRouting, level: .error)
+            return false
+        }
+        if let childViewController = child.viewController {
+            navigationController.push(childViewController, animated: animated, completion: completion)
+        }
+        child.sharedNavigationController = navigationController
         return true
     }
     
