@@ -89,23 +89,23 @@ open class RAModule: RAModuleInterface {
     ///
     /// The module tree grows (begins) with the root module.
     /// In order for some module to become root, you call the `launch(from:)` method.
-    internal private(set) static var root: RAModule? = nil
+    public private(set) static var root: RAModule? = nil
     
     /// An array containing all modules of the module tree.
-    internal static var all: [RAModule] {
+    public static var all: [RAModule] {
         return root?.all ?? []
     }
     
     /// An array containing this module and its children (and children of these children, and so on).
-    internal final var all: [RAModule] {
+    public final var all: [RAModule] {
         return [self] + children.flatMap { $0.value.all }
     }
     
     /// A parent module that owns this module, or `nil`.
-    internal weak var parent: RAModule?
+    public internal(set) weak var parent: RAModule?
     
-    /// The dictionary that stores created (and loaded) child modules by their names.
-    internal private(set) var children = [String: RAModule]()
+    /// The dictionary that stores created and loaded child modules by their names.
+    public private(set) var children = [String: RAModule]()
     
     /// The child modules that are active.
     private var activeChildren: [String: RAModule] {
@@ -113,7 +113,7 @@ open class RAModule: RAModuleInterface {
     }
     
     /// The child modules that are embedded in this module.
-    internal final var embeddedChildren: [String: RAModule] {
+    public final var embeddedChildren: [String: RAModule] {
         return children.filter { namesOfEmbeddedChildren.contains($0.key) }
     }
     
@@ -152,13 +152,14 @@ open class RAModule: RAModuleInterface {
     // MARK: Delegates
     
     /// The object that acts as the lifecycle delegate of this module.
-    private let lifecycleDelegate: RAModuleLifecycleDelegate
+    public var lifecycleDelegate: RAModuleLifecycleDelegate
     
     /// The object that provides the data for specific modules.
-    private let dataProvider: RAModuleDataProvider
+    public var dataProvider: RAModuleDataProvider
     
     /// The object that handles the data from specific modules.
-    private let dataHandler: RAModuleDataHandler
+    public var dataHandler: RAModuleDataHandler
+    
     
     // MARK: - Interactions between Modules
     
@@ -183,7 +184,7 @@ open class RAModule: RAModuleInterface {
     
     /// Sends the given signal to a specific receiver.
     /// - Returns: `True` if the receiver (or at least one of them) has handled this signal; otherwise, `false`.
-    internal final func send(_ signal: RASignal, to receiver: RAReceiver) -> Bool {
+    public final func send(_ signal: RASignal, to receiver: RAReceiver) -> Bool {
         var signalIsSended: Bool = false
         func sendSignal(to module: RAModule, from sender: RASender) -> Void {
             if module.handle(signal, from: sender) {
@@ -745,7 +746,6 @@ open class RAModule: RAModuleInterface {
     internal final func unload() -> Void {
         children.values.forEach { $0.unload() }
         deconfigure()
-        disassemble()
         isLoaded = false
         state = .inactive
         log("Unloaded from memory", category: .moduleLifecycle)
@@ -806,6 +806,7 @@ open class RAModule: RAModuleInterface {
     
     /// Performs internal setup for this module before it starts working by calling setup methods of this module and its inner components.
     private func configure() -> Void {
+        assemble()
         setup()
         builder?.setup()
         router.setup()
@@ -820,6 +821,7 @@ open class RAModule: RAModuleInterface {
         router.clean()
         builder?.clean()
         clean()
+        disassemble()
         children.removeAll()
         namesOfEmbeddedChildren.removeAll()
         namesOfChildrenThatShouldBeEmbedded.removeAll()
@@ -862,7 +864,6 @@ open class RAModule: RAModuleInterface {
         dataProvider = interactor
         log("Created", category: .moduleLifecycle)
         RALeakDetector.register(self)
-        assemble()
         configure()
     }
     
@@ -1018,7 +1019,7 @@ public enum RASender {
 
 
 
-/// A relative that specifies a relationship between two modules
+/// A relative that specifies a relationship between two objects
 ///
 /// For example, the **A** module loads the **B** module into its memory.
 /// That is, **A** becomes a **parent** for **B**, and **B** becomes a **child** for **A**.
