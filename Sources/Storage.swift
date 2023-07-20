@@ -1,3 +1,17 @@
+/// A storage that weakly stores specific modules.
+internal final class RAWeakModuleStorage: RAWeakStorage<RAModule> {
+    
+    /// The singleton weak module storage instance.
+    internal static let shared = RAWeakModuleStorage()
+    
+    /// Creates a weak module storage instance.
+    private init() {
+        super.init(name: "WeakModule")
+    }
+    
+}
+
+
 /// A storage that weakly stores specific interactors.
 internal final class RAWeakInteractorStorage: RAWeakStorage<RAInteractor> {
     
