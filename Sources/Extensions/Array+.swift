@@ -36,3 +36,18 @@ internal extension Array where Element: Equatable {
     }
     
 }
+
+
+internal extension Array where Element: CustomStringConvertible {
+    
+    /// Returns a string by converting the elements of the sequence to strings and concatenating them, adding the given separator between each element.
+    ///
+    ///     [1.2, 3.4, 5.6].toString(separator: " ") // "1.2 3.4 5.6"
+    ///     [1, 2, 3].toString(separator: ", ") // "1, 2, 3"
+    ///
+    /// - Parameter separator: A string to insert between each of the elements in this sequence. The default separator is an empty string.
+    func toString(separator: String = "") -> String {
+        return map { $0.description }.joined(separator: separator)
+    }
+    
+}
