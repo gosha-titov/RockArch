@@ -1,9 +1,15 @@
 internal extension String {
     
+    /// The log category that has the "ModuleCommunication" value.
+    static let moduleCommunication = "ModuleCommunication"
+    
     /// The log category that has the "ModuleManagement" value.
-    static var moduleManagement = "ModuleManagement"
+    static let moduleManagement = "ModuleManagement"
     
     /// The log category that has the "ModuleLifecycle" value.
-    static var moduleLifecycle = "ModuleLifecycle"
+    static let moduleLifecycle = "ModuleLifecycle"
+    
+    /// The log category that has the "ModuleRouting" value.
+    static let moduleRouting = "ModuleRouting"
     
 }
