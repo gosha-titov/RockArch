@@ -11,6 +11,7 @@ internal extension UINavigationController {
     }
     
     /// Pops the top view controller from the navigation stack and updates the display.
+    @discardableResult
     func popViewController(animated: Bool = true, completion: (() -> Void)?) -> UIViewController? {
         CATransaction.begin()
         CATransaction.setCompletionBlock(completion)
@@ -19,7 +20,18 @@ internal extension UINavigationController {
         return viewController
     }
     
+    /// Pops view controllers until the specified view controller is at the top of the navigation stack.
+    @discardableResult
+    func popToViewController(_ viewController: UIViewController, animated: Bool, completion: (() -> Void)?) -> [UIViewController]? {
+        CATransaction.begin()
+        CATransaction.setCompletionBlock(completion)
+        let viewControllers = popToViewController(viewController, animated: animated)
+        CATransaction.commit()
+        return viewControllers
+    }
+    
     /// Pops all the view controllers on the stack except the root view controller and updates the display.
+    @discardableResult
     func popToRootViewController(animated: Bool = true, completion: (() -> Void)?) -> [UIViewController]? {
         CATransaction.begin()
         CATransaction.setCompletionBlock(completion)
