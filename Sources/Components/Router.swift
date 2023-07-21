@@ -18,8 +18,10 @@ open class RARouter: RAComponent, RAIntegratable {
     /// The transition with which this module was shown.
     public internal(set) var currentTransition: Transition?
     
+    /// The transition that indicates how preferably to show the module.
     public var preferredTransition: Transition?
     
+    /// The names of the child modules that are tabs of the tab bar controller.
     public private(set) var namesOfTabModules = [String]()
     
     /// The array of names of child modules that should be added to the tab bar.
@@ -41,14 +43,18 @@ open class RARouter: RAComponent, RAIntegratable {
         return viewController as? UITabBarController
     }
     
-    /// A navigation controller that pushed a view controller of this module.
-    public internal(set) weak var sharedNavigationController: UINavigationController?
+    /// A router with a navigation controllers that pushed a view controller of this module.
+    internal weak var sharedNavigationRouter: RARouter?
+    
+    /// A name of child module that was pushed by this module.
+    public private(set) var nameOfpushedChildModule: String?
     
     /// A first view controller found in this flow.
     public final var firstViewController: UIViewController? {
         let parent = _module?.router(of: .parent)
         return viewController ?? parent?.firstViewController
     }
+    
     
     // MARK: - Routing
     
@@ -68,33 +74,33 @@ open class RARouter: RAComponent, RAIntegratable {
     @discardableResult
     public final func presentChildModule(byName childName: String, animated: Bool = true, completion: (() -> Void)? = nil) -> Bool {
         guard isActive else {
-            log("Couldn't present the \(childName) child module because this router wasn't active",
+            log("Couldn't present the `\(childName)` child module because this router wasn't active",
                 category: .moduleRouting, level: .error)
             return false
         }
         guard let module = _module else {
-            log("Couldn't present the \(childName) child module because this router didn't integrated into any module",
+            log("Couldn't present the `\(childName)` child module because this router didn't integrated into any module",
                 category: .moduleRouting, level: .error)
             return false
         }
         guard let viewControllerThatPresents = firstViewController else {
-            log("Couldn't present the \(childName) child module because this flow didn't have any view controller",
+            log("Couldn't present the `\(childName)` child module because this flow didn't have any view controller",
                 category: .moduleRouting, level: .error)
             return false
         }
         guard module.loadChild(byName: childName), let child = module.router(of: .child(childName)) else {
-            log("Couldn't present the \(childName) child module because it wasn't loaded",
+            log("Couldn't present the `\(childName)` child module because it wasn't loaded",
                 category: .moduleRouting, level: .error)
             return false
         }
         guard let childViewController = child.viewController else {
-            log("Couldn't present the \(childName) child module because it didn't have a view",
+            log("Couldn't present the `\(childName)` child module because it didn't have a view",
                 category: .moduleRouting,
                 level: .error)
             return false
         }
         guard module.invokeChild(byName: childName) else {
-            log("Couldn't present the \(childName) child module because it wasn't invoked",
+            log("Couldn't present the `\(childName)` child module because it wasn't invoked",
                 category: .moduleRouting, level: .error)
             return false
         }
@@ -116,27 +122,27 @@ open class RARouter: RAComponent, RAIntegratable {
     @discardableResult
     public final func dismissChildModule(byName childName: String, animated: Bool = true, completion: (() -> Void)? = nil) -> Bool {
         guard isActive else {
-            log("Couldn't dismiss the \(childName) child module because this router wasn't active",
+            log("Couldn't dismiss the `\(childName)` child module because this router wasn't active",
                 category: .moduleRouting, level: .error)
             return false
         }
         guard let module = _module else {
-            log("Couldn't dismiss the \(childName) child module because this router didn't integrated into any module",
+            log("Couldn't dismiss the `\(childName)` child module because this router didn't integrated into any module",
                 category: .moduleRouting, level: .error)
             return false
         }
         guard let child = module.router(of: .child(childName)) else {
-            log("Couldn't dismiss the \(childName) unknown child module",
+            log("Couldn't dismiss the `\(childName)` unknown child module",
                 category: .moduleRouting, level: .error)
             return false
         }
         guard child.currentTransition == .present, let childViewController = child.viewController else {
-            log("Couldn't dismiss the \(childName) child module because it wan't presented",
+            log("Couldn't dismiss the `\(childName)` child module because it wan't presented",
                 category: .moduleRouting, level: .error)
             return false
         }
         guard module.revokeChild(byName: childName) else {
-            log("Couldn't dismiss the \(childName) child module because it wasn't revoked",
+            log("Couldn't dismiss the `\(childName)` child module because it wasn't revoked",
                 category: .moduleRouting, level: .error)
             return false
         }
@@ -150,49 +156,204 @@ open class RARouter: RAComponent, RAIntegratable {
     
     /// Pushes a view controller of a specific child module onto a navigation stack.
     ///
-    /// The pushing process represents the loading, starting and pushing a child module.
+    /// This method represents the building, loading, starting and pushing a child module.
     /// You can push a child module in two cases: (1) if this module has a view that is a navigation controller,
     /// or (2) if this module is pushed by another navigation controller.
-    ///
-    /// You can also push the child module that has no view. In this case, you build, load, start it and then share a navigation controller to it.
-    ///
     /// - Note: When the **A** module pushes the **B** child module, **A** shares a navigation controller to **B**.
     /// That is, **B** is also able to push its child modules.
-    ///
     /// - Parameter childName: The associated name of a module to be pushed.
     /// - Parameter animated: Specify `true` to animate the transition or `false` if you do not want the transition to be animated.
-    /// The default value is `true.`
+    /// The default value is `true`.
     /// - Parameter completion: The block to execute after the pushing finishes.
-    /// This block has no return value and takes no parameters. The default value is `nil.`
-    ///
+    /// This block has no return value and takes no parameters. The default value is `nil`.
     /// - Returns: `True` if the child module has been pushed; otherwise, `false`.
     @discardableResult
     public final func pushChildModule(byName childName: String, animated: Bool = true, completion: (() -> Void)? = nil) -> Bool {
         guard isActive else {
-            log("Couldn't push the \(childName) child module because this router wasn't active",
+            log("Couldn't push the `\(childName)` child module because this router wasn't active",
                 category: .moduleRouting, level: .error)
             return false
         }
         guard let module = _module else {
-            log("Couldn't push the \(childName) child module because this router didn't integrated into any module",
+            log("Couldn't push the `\(childName)` child module because this router didn't integrated into any module",
                 category: .moduleRouting, level: .error)
             return false
         }
-        guard let navigationController = navigationController ?? sharedNavigationController else {
-            log("Couldn't push the \(childName) child module because this router didn't have any navigation controller",
+        let anyNavigationController: UINavigationController
+        let anyNavigationRouter: RARouter
+        if let navigationController {
+            guard navigationController.viewControllers.isEmpty else {
+                log("Couldn't push the `\(childName)` child module because this router already pushed the root view controller",
+                    category: .moduleRouting, level: .error)
+                return false
+            }
+            anyNavigationController = navigationController
+            anyNavigationRouter = self
+        } else {
+            guard let sharedNavigationRouter, let sharedNavigationController = sharedNavigationRouter.navigationController else {
+                log("Couldn't push the `\(childName)` child module because this router didn't have any navigation controller",
+                    category: .moduleRouting, level: .error)
+                return false
+            }
+            guard sharedNavigationController.topViewController === viewController else {
+                log("Couldn't push the `\(childName)` child module because this module wasn't on the navigation stack",
+                    category: .moduleRouting, level: .error)
+                return false
+            }
+            anyNavigationController = sharedNavigationController
+            anyNavigationRouter = sharedNavigationRouter
+        }
+        guard module.invokeChild(byName: childName) else {
+            log("Couldn't push the `\(childName)` child module because it wasn't invoked",
                 category: .moduleRouting, level: .error)
             return false
         }
-        guard module.invokeChild(byName: childName), let child = module.router(of: .child(childName)) else {
-            log("Couldn't push the \(childName) child module because it wasn't invoked",
+        guard let child = module.router(of: .child(childName)), let childViewController = child.viewController else {
+            log("Couldn't push the `\(childName)` child module because it didn't have a view controller",
                 category: .moduleRouting, level: .error)
             return false
         }
-        if let childViewController = child.viewController {
-            navigationController.push(childViewController, animated: animated, completion: completion)
-        }
-        child.sharedNavigationController = navigationController
+        anyNavigationController.push(childViewController, animated: animated, completion: completion)
+        child.sharedNavigationRouter = anyNavigationRouter
+        nameOfpushedChildModule = childName
+        child.currentTransition = .push
         return true
+    }
+    
+    /// Pops view controllers until the view controller of this module is at the top of the navigation stack.
+    ///
+    /// This method represents the popping, stopping and unloading child modules on the navigation stack.
+    /// - Parameter animated: Specify `true` to animate the transition or `false` if you do not want the transition to be animated.
+    /// The default value is `true`.
+    /// - Parameter completion: The block to execute after the view controllers are popped.
+    /// This block has no return value and takes no parameters. The default value is `nil`.
+    /// - Returns: `True` if the view controller of this module is at the top of the navigation stack; otherwise, `false`.
+    public final func popToThisModule(animated: Bool = true, completion: (() -> Void)? = nil) -> Bool {
+        if let childName = nameOfpushedChildModule {
+            return popChildModule(byName: childName, animated: animated, completion: completion)
+        } else {
+            completion?()
+            return true
+        }
+    }
+    
+    /// Pops a view controller of a specific child module from the navigation stack.
+    ///
+    /// This method represents the popping, stopping and unloading a child module on the navigation stack.
+    /// - Parameter childName: The associated name of a module to be popped.
+    /// - Parameter animated: Specify `true` to animate the transition or `false` if you do not want the transition to be animated.
+    /// The default value is `true`.
+    /// - Parameter completion: The block to execute after the view controller is popped.
+    /// This block has no return value and takes no parameters. The default value is `nil`.
+    /// - Returns: `True` if the child module has been popped; otherwise, `false`.
+    public final func popChildModule(byName childName: String, animated: Bool = true, completion: (() -> Void)? = nil) -> Bool {
+        guard isActive else {
+            log("Couldn't pop the `\(childName)` child module because this router wasn't active",
+                category: .moduleRouting, level: .error)
+            return false
+        }
+        guard let module = _module else {
+            log("Couldn't pop the `\(childName)` child module because this router didn't integrated into any module",
+                category: .moduleRouting, level: .error)
+            return false
+        }
+        guard let child = module.router(of: .child(childName)) else {
+            log("Couldn't pop the \(childName) unknown child module",
+                category: .moduleRouting, level: .error)
+            return false
+        }
+        guard child.currentTransition == .push else {
+            log("Couldn't pop the `\(childName)` child module because it wasn't pushed",
+                category: .moduleRouting, level: .error)
+            return false
+        }
+        guard navigationController.isNil else {
+            log("Couldn't pop the `\(childName)` child module because it was the root view controller",
+                category: .moduleRouting, level: .error)
+            // Because the navigator module can push only the root module
+            return false
+        }
+        guard let sharedNavigationRouter, let sharedNavigationController = sharedNavigationRouter.navigationController else {
+            log("Couldn't pop the `\(childName)` child module because this router didn't have any navigation controllers",
+                category: .moduleRouting, level: .error)
+            return false
+        }
+        guard let viewController else {
+            log("Couldn't pop the `\(childName)` child module because this router didn't have a view controller",
+                category: .moduleRouting, level: .error)
+            // It's just to unwrap the value
+            return false
+        }
+        guard module.revokeChild(byName: childName) else {
+            log("Couldn't pop the `\(childName)` child module because it wasn't revoked",
+                category: .moduleRouting, level: .error)
+            return false
+        }
+        sharedNavigationController.popToViewController(viewController, animated: animated, completion: completion)
+        child.sharedNavigationRouter = nil
+        child.currentTransition = nil
+        return true
+    }
+    
+    /// Pops all modules on the stack except the root module.
+    ///
+    /// This method represents the popping, stopping and unloading all modules on the navigation stack except the root module.
+    /// - Parameter animated: Specify `true` to animate the transition or `false` if you do not want the transition to be animated.
+    /// The default value is `true`.
+    /// - Parameter completion: The block to execute after the view controllers are popped.
+    /// This block has no return value and takes no parameters. The default value is `nil`.
+    /// - Returns: `True` if the view controller of the root module is at the top of the navigation stack; otherwise, `false`.
+    public final func popToRootModule(animated: Bool, completion: (() -> Void)? = nil) -> Bool {
+        guard isActive else {
+            log("Couldn't pop to the root module because this router wasn't active",
+                category: .moduleRouting, level: .error)
+            return false
+        }
+        if let _ = navigationController {
+            return popToRootChildModule(animated: animated, completion: completion)
+        } else {
+            guard let sharedNavigationRouter else {
+                return false
+            }
+            return sharedNavigationRouter.popToRootChildModule(animated: animated, completion: completion)
+        }
+    }
+    
+    /// Pops all modules on the stack except the root child module.
+    ///
+    /// This method represents the popping, stopping and unloading all modules on the navigation stack except the root child module.
+    /// - Parameter animated: Specify `true` to animate the transition or `false` if you do not want the transition to be animated.
+    /// The default value is `true`.
+    /// - Parameter completion: The block to execute after the view controllers are popped.
+    /// This block has no return value and takes no parameters. The default value is `nil`.
+    /// - Returns: `True` if the view controller of the root child module is at the top of the navigation stack; otherwise, `false`.
+    internal final func popToRootChildModule(animated: Bool, completion: (() -> Void)? = nil) -> Bool {
+        guard isActive else {
+            log("Couldn't pop to the root child module because this router wasn't active",
+                category: .moduleRouting, level: .error)
+            return false
+        }
+        guard let module = _module else {
+            log("Couldn't pop to the root child module because this router didn't integrated into any module",
+                category: .moduleRouting, level: .error)
+            return false
+        }
+        guard let _ = navigationController else {
+            log("Couldn't pop to the root child module because this router didn't have a navigation controller",
+                category: .moduleRouting, level: .error)
+            return false
+        }
+        guard let childName = nameOfpushedChildModule else { // is always the root module
+            log("Couldn't pop to the root child module because this router didn't push a root view controller",
+                category: .moduleRouting, level: .error)
+            return false
+        }
+        guard let child = module.router(of: .child(childName)) else {
+            log("Couldn't pop to the `\(childName)` root child module",
+                category: .moduleRouting, level: .error)
+            return false
+        }
+        return child.popToThisModule(animated: animated, completion: completion)
     }
     
     
