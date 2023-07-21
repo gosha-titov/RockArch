@@ -16,7 +16,9 @@ open class RARouter: RAComponent, RAIntegratable {
     public let type: String = "Router"
     
     /// The transition with which this module was shown.
-    public internal(set) var transition: Transition = .none
+    public internal(set) var currentTransition: Transition?
+    
+    public var preferredTransition: Transition?
     
     public private(set) var namesOfTabModules = [String]()
     
@@ -48,22 +50,20 @@ open class RARouter: RAComponent, RAIntegratable {
         return viewController ?? parent?.firstViewController
     }
     
-    
     // MARK: - Routing
+    
+    // MARK: Presenting and Dismissing
     
     /// Presents a view controller of a specific child module modally.
     ///
-    /// The presentation represents the loading, building and presenting a child module.
+    /// This method represents the building, loading, starting and presenting a child module.
     /// You can present a child module only if there's at least one view controller in this flow.
-    ///
     /// - Note: If you present the child module that has no view, then you just load it and see the error in log messages.
-    ///
     /// - Parameter childName: The associated name of a module to be present.
     /// - Parameter animated: Specify `true` to animate the transition, or `false` if you do not want the transition to be animated.
-    /// The default value is `true.`
+    /// The default value is `true`.
     /// - Parameter completion: The block to execute after the presentation finishes.
-    /// This block has no return value and takes no parameters. The default value is `nil.`
-    ///
+    /// This block has no return value and takes no parameters. The default value is `nil`.
     /// - Returns: `True` if the child module has been presented; otherwise, `false`.
     @discardableResult
     public final func presentChildModule(byName childName: String, animated: Bool = true, completion: (() -> Void)? = nil) -> Bool {
@@ -83,7 +83,7 @@ open class RARouter: RAComponent, RAIntegratable {
             return false
         }
         guard module.loadChild(byName: childName), let child = module.router(of: .child(childName)) else {
-            log("Couldn't present the \(childName) child module because it wasn't be loaded",
+            log("Couldn't present the \(childName) child module because it wasn't loaded",
                 category: .moduleRouting, level: .error)
             return false
         }
@@ -94,14 +94,59 @@ open class RARouter: RAComponent, RAIntegratable {
             return false
         }
         guard module.invokeChild(byName: childName) else {
-            log("Couldn't present the \(childName) child module because it wasn't be invoked",
+            log("Couldn't present the \(childName) child module because it wasn't invoked",
                 category: .moduleRouting, level: .error)
             return false
         }
         viewControllerThatPresents.present(childViewController, animated: animated, completion: completion)
-        child.transition = .presented
+        child.currentTransition = .present
         return true
     }
+    
+    /// Dismesses a view controller of a specific child module that was presented modally.
+    ///
+    /// This method represents the dismissing, stopping and unloading a child module.
+    /// You can dismiss a child module only if its view controller was presented modally.
+    /// - Parameter childName: The associated name of a module to be dismissed.
+    /// - Parameter animated: Specify `true` to animate the transition, or `false` if you do not want the transition to be animated.
+    /// The default value is `true`.
+    /// - Parameter completion: The block to execute after the view controller is dismissed.
+    /// This block has no return value and takes no parameters. The default value is `nil`.
+    /// - Returns: `True` if the child module has been dismissed; otherwise, `false`.
+    @discardableResult
+    public final func dismissChildModule(byName childName: String, animated: Bool = true, completion: (() -> Void)? = nil) -> Bool {
+        guard isActive else {
+            log("Couldn't dismiss the \(childName) child module because this router wasn't active",
+                category: .moduleRouting, level: .error)
+            return false
+        }
+        guard let module = _module else {
+            log("Couldn't dismiss the \(childName) child module because this router didn't integrated into any module",
+                category: .moduleRouting, level: .error)
+            return false
+        }
+        guard let child = module.router(of: .child(childName)) else {
+            log("Couldn't dismiss the \(childName) unknown child module",
+                category: .moduleRouting, level: .error)
+            return false
+        }
+        guard child.currentTransition == .present, let childViewController = child.viewController else {
+            log("Couldn't dismiss the \(childName) child module because it wan't presented",
+                category: .moduleRouting, level: .error)
+            return false
+        }
+        guard module.revokeChild(byName: childName) else {
+            log("Couldn't dismiss the \(childName) child module because it wasn't revoked",
+                category: .moduleRouting, level: .error)
+            return false
+        }
+        childViewController.dismiss(animated: animated, completion: completion)
+        child.currentTransition = nil
+        return true
+    }
+    
+    
+    // MARK: Pushing and Popping
     
     /// Pushes a view controller of a specific child module onto a navigation stack.
     ///
@@ -139,7 +184,7 @@ open class RARouter: RAComponent, RAIntegratable {
             return false
         }
         guard module.invokeChild(byName: childName), let child = module.router(of: .child(childName)) else {
-            log("Couldn't push the \(childName) child module because it wasn't be invoked",
+            log("Couldn't push the \(childName) child module because it wasn't invoked",
                 category: .moduleRouting, level: .error)
             return false
         }
@@ -149,6 +194,9 @@ open class RARouter: RAComponent, RAIntegratable {
         child.sharedNavigationController = navigationController
         return true
     }
+    
+    
+    // MARK: Selecting
     
     /// Selects a view controller of a specific child module.
     ///
@@ -167,7 +215,7 @@ open class RARouter: RAComponent, RAIntegratable {
     ///
     ///     }
     ///
-    /// And then add specific tab modules from them (if you don't call these methods below then they are considered as tabs by default):
+    /// And then add specific tab modules from them (if you don't call these below methods then they are considered as tabs by default):
     ///
     ///     final class MainRouter: RARouter {
     ///
@@ -209,7 +257,7 @@ open class RARouter: RAComponent, RAIntegratable {
         }
         guard module.invokeChild(byName: childName) else {
             // Most likely, the embedded child module is already loaded and started, but just in case we check it
-            log("Couldn't select the \(childName) child module because it wasn't be invoked",
+            log("Couldn't select the \(childName) child module because it wasn't invoked",
                 category: .moduleRouting, level: .error)
             return false
         }
@@ -245,7 +293,8 @@ open class RARouter: RAComponent, RAIntegratable {
                let childViewController = child.viewController {
                 childViewControllers.append(childViewController)
                 namesOfTabModules.append(childName)
-                child.transition = .selected
+                child.preferredTransition = .select
+                child.currentTransition = .select
             } else {
                 log("Couldn't add the `\(childName)` child module to a tab bar because it didn't have a view controller",
                     category: .moduleRouting, level: .error)
@@ -343,10 +392,9 @@ open class RARouter: RAComponent, RAIntegratable {
 extension RARouter {
     
     public enum Transition {
-        case presented
-        case pushed
-        case selected
-        case none
+        case present
+        case push
+        case select
     }
     
 }
