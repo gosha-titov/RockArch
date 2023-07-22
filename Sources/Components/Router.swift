@@ -63,8 +63,6 @@ open class RARouter: RAComponent, RAIntegratable {
     /// Presents a view controller of a specific child module modally.
     ///
     /// This method represents the building, loading, starting and presenting a child module.
-    /// You can present a child module only if there's at least one view controller in this flow.
-    /// - Note: If you present the child module that has no view, then you just load it and see the error in log messages.
     /// - Parameter childName: The associated name of a module to be present.
     /// - Parameter animated: Specify `true` to animate the transition, or `false` if you do not want the transition to be animated.
     /// The default value is `true`.
@@ -427,26 +425,58 @@ open class RARouter: RAComponent, RAIntegratable {
     }
     
     
-    // MARK: - Tab Bar Controller
+    // MARK: - Setuping Controllers
     
     /// Setups a tab bar controller by setting view controllers of embedded child modules.
-    internal final func setupTabBarController() -> Void {
+    ///
+    /// Firstly, you must specify which modules are embedded, so you override the `setup` method of the module:
+    ///
+    ///     override func setup() -> Void {
+    ///             embedChildModule(byName: "Feed")
+    ///             embedChildModule(byName: "Messages")
+    ///             embedChildModule(byName: "Settings")
+    ///     }
+    ///
+    /// Then you call this method in the `setup()` method:
+    ///
+    ///     override func setup() -> Void {
+    ///         setupTabBarController(withTabs: ["Feed", "Messages", "Settings"])
+    ///     }
+    ///
+    /// - Important: The given names should match the corresponding name of the embedded child specified in the module.
+    /// If you want that all embedded modules are considered tabs, then do not call this method,
+    /// because embedded modules are considered tabs by default.
+    /// - Note: This method should be called in the `setup()` method.
+    /// - Parameter tabNames: The names of embedded child modules to become tabs.
+    /// - Returns: `True` if the child view controller are set for the tab bar controller; otherwise, `false`.
+    @discardableResult
+    public final func setupTabBarController(tabs tabNames: [String]? = nil) -> Bool {
         let childNames: [String]
-        guard let tabBarController else { return }
+        guard let tabBarController else {
+            log("Couldn't setup a tab bar controller because this router didn't have it",
+                category: .moduleRouting, level: .error)
+            return false
+        }
         guard isInactive else {
             log("Couldn't setup a tab bar controller because this router was already active",
                 category: .moduleRouting, level: .error)
-            return
+            return false
         }
         guard let module = _module else {
-            log("Couldn't setup a tab bar controller because this didn't have any module",
+            log("Couldn't setup a tab bar controller because this router didn't integrated into any module",
                 category: .moduleRouting, level: .error)
-            return
+            return false
         }
-        if namesOfChildrenThatShouldBeTabs.isEmpty {
+        if let tabNames {
+            guard module.namesOfEmbeddedChildren.contains(tabNames) else {
+                log("Couldn't setup a tab bar controller because some modules weren't embedded",
+                    category: .moduleRouting, level: .error)
+                return false
+            }
+            childNames = tabNames
+        }
+        else {
             childNames = module.namesOfEmbeddedChildren
-        } else {
-            childNames = namesOfChildrenThatShouldBeTabs
         }
         var childViewControllers = [UIViewController]()
         for childName in childNames {
@@ -462,50 +492,30 @@ open class RARouter: RAComponent, RAIntegratable {
             }
         }
         tabBarController.setViewControllers(childViewControllers, animated: false)
+        return true
     }
     
-    /// Adds a specific module to tab modules by its associated name.
-    ///
-    /// It's used for a tab bar module. For example:
-    ///
-    ///     override func setup() -> Void {
-    ///         addTabModule(byName: "Feed")
-    ///         addTabModule(byName: "Messages")
-    ///         addTabModule(byName: "Settings")
-    ///     }
-    ///
-    /// - Important: The given name should match the corresponding name of the embedded child specified in the module.
-    /// If you want that all embedded modules are considered tabs, then do not call this method,
-    /// because embedded modules are considered tabs by default.
-    ///
-    /// - Note: The tab child module becomes built and loaded only during the loading of this module.
-    /// That is, this method should be called in the `setup()` method.
-    ///
-    /// - Returns: `True` if the child added to tab modules; otherwise, `false`.
+    /// Setups a navigation controller by pushing the root view controller of a specific child module.
+    /// - Note: This method should be called in the `setup()` method.
+    /// - Returns: `True` if the root view controller has been pushed; otherwise, `false`.
     @discardableResult
-    public final func addTabModule(byName childName: String) -> Bool {
+    public final func setupNavigationController(root childName: String) -> Bool {
+        guard let _ = navigationController else {
+            log("Couldn't setup a navigation controller because this router didn't have it",
+                category: .moduleRouting, level: .error)
+            return false
+        }
         guard isInactive else {
-            log("Couldn't add the `\(childName)` tab because this router was already active",
+            log("Couldn't setup a navigation controller because this router was already active",
                 category: .moduleRouting, level: .error)
             return false
         }
-        guard let module = _module else {
-            log("Couldn't add the `\(childName)` tab because this router didn't have any module",
+        guard let _ = _module else {
+            log("Couldn't setup a navigation controller because this router didn't integrated into any module",
                 category: .moduleRouting, level: .error)
             return false
         }
-        guard module.namesOfEmbeddedChildren.contains(childName) else {
-            log("Couldn't add the `\(childName)` tab because this module wasn't embedded",
-                category: .moduleRouting, level: .error)
-            return false
-        }
-        guard namesOfChildrenThatShouldBeTabs.contains(childName) == false else {
-            log("Couldn't add the `\(childName)` tab twice",
-                category: .moduleRouting, level: .warning)
-            return false
-        }
-        namesOfChildrenThatShouldBeTabs.append(childName)
-        return false
+        return pushChildModule(byName: childName, animated: false)
     }
     
     
@@ -513,15 +523,19 @@ open class RARouter: RAComponent, RAIntegratable {
     
     /// Setups this router before it starts working.
     ///
-    /// This method is called when the module into which this router integrated is assembled but not yet loaded into the module tree.
+    /// This method is called when the module into which this router integrated is assembled and loaded into the module tree.
     /// You usually override this method to perform additional initialization on your private properties.
     ///
     /// Most ofter you use this method in the following way:
     ///
     ///     override func setup() -> Void {
-    ///         addTabModule(byName: "Feed")
-    ///         addTabModule(byName: "Messages")
-    ///         addTabModule(byName: "Settings")
+    ///         setupTabBarController(withTabs: ["Feed", "Messages", "Settings"])
+    ///     }
+    ///
+    /// or if this module has a navigation controller:
+    ///
+    ///     override func setup() -> Void {
+    ///         setupNavigationController(root: "Feed")
     ///     }
     ///
     /// You don't need to call the `super` method.
