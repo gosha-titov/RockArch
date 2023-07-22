@@ -27,7 +27,56 @@
 //         |                     +––––––––––––––––––––+                  ↑
 //         ⌎ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - ⌏
 //
-
+//
+// Lifecycle methods
+// -----------------
+//
+// Below is a method chaining that includes main lifecycle methods:
+//
+// | Module  | Interactor | Router  | View  | Builder |
+// +–––––––––+––––––––––––+–––––––––+–––––––+–––––––––+
+//                                    viewDidLoad()
+// + - - - - +- - - - - - + - - - - + - - - + - - - - +
+//  assemble()
+//  setup()
+// + - - - - +- - - - - - + - - - - + - - - + - - - - +
+//  canLoad(with:)
+//             moduleCanLoad(with:)
+//                                    loadEmbeddedViewControllers()
+// + - - - - +- - - - - - + - - - - + - - - + - - - - +
+//  load()
+//             setup()
+//                          setup()
+//                                    setup()
+//                                            setup()
+//             moduleDidLoad()
+// + - - - - +- - - - - - + - - - - + - - - + - - - - +
+//  canStart(with:)
+//             moduleCanStart(with:)
+// + - - - - +- - - - - - + - - - - + - - - + - - - - +
+//             moduleWillStart()
+//  start()
+//                                    viewWillAppear()
+//                                    viewDidAppear()
+//             moduleDidStart()
+// + - - - - +- - - - - - + - - - - + - - - + - - - - +
+//             moduleWillStop()
+//  result()
+//             result()
+//  stop()
+//                                    viewWillDisappear()
+//                                    viewDidDisappear()
+//             moduleDidStop()
+// + - - - - +- - - - - - + - - - - + - - - + - - - - +
+//             moduleWillUnload()
+//  unload()
+//  clean()
+//             clean()
+//                          clean()
+//                                    clean()
+//                                            clean()
+//  disassemble()
+//
 
 open class RAModule: RAModuleInterface {
     
@@ -122,13 +171,6 @@ open class RAModule: RAModuleInterface {
     
     /// The names of the child modules embedded in this module.
     public private(set) var namesOfEmbeddedChildren = [String]()
-    
-    /// The built child modules that should be embedded during the loading of this module.
-    ///
-    /// These child modules are built after the `canLoad(byInjecting:)` method is called,
-    /// that is, they can be loaded but not yet (they are not attached).
-    /// They becomes loaded in the `load()` method.
-    private var builtChildrenThatShouldBeEmbedded = [String: RAModule]()
     
     /// The names of the child modules that should be embedded during the loading of this module.
     ///
@@ -586,13 +628,6 @@ open class RAModule: RAModuleInterface {
         return true
     }
     
-    /// Embeds child modules that were built by attaching and loading them.
-    private func embedChildren() -> Void {
-        builtChildrenThatShouldBeEmbedded.values.forEach { attach($0) }
-        namesOfEmbeddedChildren = builtChildrenThatShouldBeEmbedded.keys.asArray
-        embeddedChildren.values.forEach { $0.load() }
-    }
-    
     
     // MARK: - Lifecycle
     
@@ -604,6 +639,7 @@ open class RAModule: RAModuleInterface {
     /// then this module cannot be loaded too.
     /// - Returns: `True` if module can be loaded; otherwise, `false`.
     internal final func canLoad(with dependency: RADependency?) -> Bool {
+        var builtChildrenThatShouldBeEmbedded = [String: RAModule]()
         for childName in namesOfChildrenThatShouldBeEmbedded {
             if let builtChild = buildChild(byName: childName) {
                 builtChildrenThatShouldBeEmbedded[childName] = builtChild
@@ -632,6 +668,13 @@ open class RAModule: RAModuleInterface {
                 category: .moduleLifecycle, level: .error)
             return false
         }
+        builtChildrenThatShouldBeEmbedded.values.forEach { attach($0) }
+        namesOfEmbeddedChildren = builtChildrenThatShouldBeEmbedded.keys.asArray
+        guard view.loadEmbeddedViewControllers() else {
+            log("Couldn't be loaded because the view didn't load embedded children",
+                category: .moduleLifecycle, level: .error)
+            return false
+        }
         return true
     }
     
@@ -639,9 +682,12 @@ open class RAModule: RAModuleInterface {
     ///
     /// Called when this module is in the process of being added to the module tree by the parent module.
     internal final func load() -> Void {
+        embeddedChildren.values.forEach { $0.load() }
         isLoaded = true
-        embedChildren()
-        router.setupTabBarController()
+        interactor.setup()
+        router.setup()
+        view.setup()
+        builder?.setup()
         log("Loaded into memory", category: .moduleLifecycle)
     }
     
@@ -797,24 +843,19 @@ open class RAModule: RAModuleInterface {
     private func configure() -> Void {
         assemble()
         setup()
-        builder?.setup()
-        router.setup()
-        view.setup()
-        interactor.setup()
     }
     
     /// Performs internal clean for this module after it stops working by calling the setup method of this module and its inner components.
     private func deconfigure() -> Void {
-        interactor.clean()
-        view.clean()
-        router.clean()
-        builder?.clean()
         clean()
+        interactor.clean()
+        router.clean()
+        view.clean()
+        builder?.clean()
         disassemble()
         children.removeAll()
         namesOfEmbeddedChildren.removeAll()
         namesOfChildrenThatShouldBeEmbedded.removeAll()
-        builtChildrenThatShouldBeEmbedded.removeAll()
     }
     
     
@@ -858,7 +899,6 @@ open class RAModule: RAModuleInterface {
     
     deinit {
         RALeakDetector.release(self)
-        RALeakDetector.release(view) // It can't release by itself
         log("Deleted", category: .moduleLifecycle)
     }
     
