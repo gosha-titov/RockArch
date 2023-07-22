@@ -63,6 +63,9 @@ open class RAModule: RAModuleInterface {
         else { return name }
     }
     
+    /// A boolean value that indicates whether this module is the root for the module tree.
+    public private(set) var isRoot: Bool = false
+    
     /// A boolean value that indicates whether this module is loaded into the module tree.
     public private(set) var isLoaded: Bool = false
     
@@ -142,8 +145,8 @@ open class RAModule: RAModuleInterface {
     /// The internal router of this module.
     internal let router: RARouter
     
-    /// The internal view of this module, or `nil`.
-    internal let view: (any RAView)?
+    /// The internal view of this module.
+    internal let view: (any RAView)
     
     /// The internal builder of this module, or `nil`.
     internal let builder: RABuilder?
@@ -325,11 +328,7 @@ open class RAModule: RAModuleInterface {
         }
         let child: RAModule
         if let existingChild = children[childName] {
-            guard existingChild.isInactive else {
-                log("Couldn't invoke the `\(childName)` child module because it was already active",
-                    category: .moduleManagement, level: .warning)
-                return false
-            }
+            guard existingChild.isInactive else { return true }
             child = existingChild
         } else {
             guard let newChild = buildChild(byName: childName) else {
@@ -366,11 +365,7 @@ open class RAModule: RAModuleInterface {
                 category: .moduleManagement, level: .error)
             return false
         }
-        guard child.isActive else {
-            log("Couldn't revoke the `\(childName)` child module because it wasn't active",
-                category: .moduleManagement, level: .error)
-            return false
-        }
+        guard child.isActive else { return true }
         return stop(child) && (child.isUnloadedIfCompleted ? unload(child) : true)
     }
     
@@ -465,11 +460,7 @@ open class RAModule: RAModuleInterface {
             return false
         }
         let childDoesNotExist = !children.hasKey(childName)
-        guard childDoesNotExist else {
-            log("Couldn't load the `\(childName)` child module because it was already loaded into memory",
-                category: .moduleManagement, level: .warning)
-            return false
-        }
+        guard childDoesNotExist else { return true }
         guard let builtChild = buildChild(byName: childName) else {
             log("Couldn't load the `\(childName)` child module into memory because it couldn't be built",
                 category: .moduleManagement, level: .error)
@@ -507,11 +498,7 @@ open class RAModule: RAModuleInterface {
     /// - Returns: `True` if the given module was loaded successfully; otherwise, `false`.
     private func load(_ child: RAModule) -> Bool {
         let childDoesNotExist = !children.contains(value: child)
-        guard childDoesNotExist else {
-            log("Couldn't load the `\(child.name)` child module because it was already in the module tree",
-                category: .moduleManagement, level: .error)
-            return false
-        }
+        guard childDoesNotExist else { return true }
         let childCanLoad = provideDependency(to: child)
         guard childCanLoad else {
             log("Couldn't load the `\(child.name)` child module",
@@ -582,20 +569,21 @@ open class RAModule: RAModuleInterface {
     ///
     /// - Note: The embedded child module becomes built and loaded only during the loading of this module.
     /// That is, this method should be called in the `setup()` method.
-    public final func embedChildModule(byName childName: String) -> Void {
+    /// - Returns: `True` if the child added to embedded modules; otherwise, `false`.
+    @discardableResult
+    public final func embedChildModule(byName childName: String) -> Bool {
         guard isLoaded == false else {
             log("Couldn't embed the `\(childName)` child module because this module was loaded",
-                category: .moduleManagement,
-                level: .error)
-            return
+                category: .moduleManagement, level: .error)
+            return false
         }
         guard namesOfChildrenThatShouldBeEmbedded.contains(childName) == false else {
             log("Couldn't embed the `\(childName)` child module twice",
-                category: .moduleManagement,
-                level: .warning)
-            return
+                category: .moduleManagement, level: .warning)
+            return false
         }
         namesOfChildrenThatShouldBeEmbedded.append(childName)
+        return true
     }
     
     /// Embeds child modules that were built by attaching and loading them.
@@ -653,6 +641,7 @@ open class RAModule: RAModuleInterface {
     internal final func load() -> Void {
         isLoaded = true
         embedChildren()
+        router.setupTabBarController()
         log("Loaded into memory", category: .moduleLifecycle)
     }
     
@@ -757,23 +746,23 @@ open class RAModule: RAModuleInterface {
     /// Assembles this module by connecting its inner components to each other and to itself.
     private func assemble() -> Void {
         router.viewController = view
-        view?._interactor = interactor
+        view._interactor = interactor
         interactor._router = router
         interactor._view = view
         interactor._module = self
         router._module = self
-        view?._module = self
+        view._module = self
     }
     
     /// Disassembles this module by disconnecting components from each other and from itself.
     private func disassemble() -> Void {
         router.viewController = nil
-        view?._interactor = nil
+        view._interactor = nil
         interactor._router = nil
         interactor._view = nil
         interactor._module = nil
         router._module = nil
-        view?._module = nil
+        view._module = nil
     }
     
     
@@ -810,14 +799,14 @@ open class RAModule: RAModuleInterface {
         setup()
         builder?.setup()
         router.setup()
-        view?.setup()
+        view.setup()
         interactor.setup()
     }
     
     /// Performs internal clean for this module after it stops working by calling the setup method of this module and its inner components.
     private func deconfigure() -> Void {
         interactor.clean()
-        view?.clean()
+        view.clean()
         router.clean()
         builder?.clean()
         clean()
@@ -847,13 +836,12 @@ open class RAModule: RAModuleInterface {
     ///
     /// - Parameter view: The view that is responsible for configurating and updating UI, catching and handling user interactions.
     /// Implement this by creating a new class that conforms to the `RAView` protocol.
-    /// If this is a logical module that doesn't have a view, then pass `nil` (default).
     ///
     /// - Parameter builder: The builder that is responsible for creating child modules by their associated names.
     /// Implement this by subclassing the `RABuilder` class.
     /// If this module doesn't have child modules, then pass `nil` (default).
     ///
-    public init(name: String, interactor: RAInteractor, router: RARouter, view: (any RAView)? = nil, builder: RABuilder? = nil) {
+    public init(name: String, interactor: RAInteractor, router: RARouter, view: any RAView, builder: RABuilder? = nil) {
         self.name = name
         self.interactor = interactor
         self.router = router
@@ -864,10 +852,13 @@ open class RAModule: RAModuleInterface {
         dataProvider = interactor
         log("Created", category: .moduleLifecycle)
         RALeakDetector.register(self)
+        RALeakDetector.register(view) // It can't register by itself
         configure()
     }
     
     deinit {
+        RALeakDetector.release(self)
+        RALeakDetector.release(view) // It can't release by itself
         log("Deleted", category: .moduleLifecycle)
     }
     
