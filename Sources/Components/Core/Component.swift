@@ -2,12 +2,11 @@
 ///
 /// The `RAIntegratable` protocol has a `module` property into which this component is integrated.
 /// Thereby, the integrated component reflects the module by having the same name and type as it.
-/// The `RAInteractor`, `RARouter`, `RAPresenter` and `RABuilder` components conforms to this protocol.
-/// - Note: The `module` property should be weak to avoid memory leaks.
+/// The `RAInteractor`, `RARouter`, `RAView` and `RABuilder` components conforms to this protocol.
 public protocol RAIntegratable where Self: RAComponent {
     
     /// A module into which this component is integrated.
-    /*weak*/ var module: RAModule? { get set }
+    var module: RAModuleInterface? { get }
     
 }
 
@@ -57,9 +56,6 @@ public extension RAComponent {
     /// A boolean value that indicates whether this component is active.
     var isActive: Bool { state == .active }
     
-    /// A boolean value that indicates whether this component is suspended.
-    var isSuspended: Bool { state == .suspended }
-    
     /// A boolean value that indicates whether this component is inactive.
     var isInactive: Bool { state == .inactive }
     
@@ -72,9 +68,6 @@ public enum RAComponentState {
     
     /// The state in which the component is currently running
     case active
-    
-    /// The state in which the component is suspended for a while.
-    case suspended
     
     /// The state in which the component doesn't perform any work.
     case inactive
