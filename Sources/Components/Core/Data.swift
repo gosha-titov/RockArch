@@ -1,3 +1,5 @@
+import UIKit
+
 /// A dependency that is injected in a module during loading.
 ///
 /// When one module loads another, it can pass a dependency that should be injected.
@@ -19,10 +21,10 @@ public typealias RAContext = Any
 
 /// A result with which a module stops the work.
 ///
-/// When a module hides, it can pass a result of its work to a parent module.
+/// When a module completes, it can pass a result of its work to a parent module.
 ///
 /// For example, you have settings where a user can choose an acсent color for the application.
-/// So, you have the `SettingsModule` and `ColorPickerModule` classes.
+/// So, you have the `AppearanceModule` and `ColorPickerModule` classes.
 /// That is, the result of the second module is a `chosenColor` that you handle in the first module.
 public typealias RAResult = Any
 
@@ -67,3 +69,16 @@ public struct RASignal: CustomStringConvertible {
     }
     
 }
+
+
+
+/// An animation of showing or hiding a view controller.
+///
+/// This closure has no return value and takes only one parameter: a child view controller to animate.
+/// It's used to show and hide a child module when it starts/stops working.
+///
+///     let presentChildViewController: RADefaultAnimation = { childViewController in
+///         viewController.present(childViewController, animated: false)
+///     }
+///
+internal typealias RADefaultAnimation = (UIViewController) -> Void
