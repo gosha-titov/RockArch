@@ -1,8 +1,49 @@
 import UIKit
 
+/// A view that is responsible for configurating and updating UI, catching and handling user interactions.
+///
+/// The `RAView` extends the `UIViewController` class by adding the properties and methods necessary to be integrated into the module.
+/// This causes the view to have `name`, `type`, `state` and `module` properties.
+///
+/// In order to interact with the `interactor` component of the module, you use a specific communication interface.
+/// This is in order to clearly delineate the work of the components and ensure clarity of interactions between them.
+///
+/// Now the view has two additional lifecycle methods: `setup()` and `clean()`,
+/// which are called when the module is attached to or detached from the module tree.
+/// It allows you to move all the logic of the view configuration from the `viewDidLoad()` method to `setup()`.
+///
+/// If the module has embedded children, you can access them by using the `embeddedChildren` property and
+/// by redefining the `loadEmbeddedViewControllers()` method to make sure they really exist.
+/// It's used if you want to custom display these child controllers.
+///
+/// - Note: Each component can log messages by calling the `log(_:category:level:)` method.
+/// These messages are handled by the current black box with its loggers.
+///
+/// - Important: You should not redefine the implementation of these above properties,
+/// because the compiler provides it for you using internal properties.
+///
 public protocol RAView: RAComponent, RAIntegratable where Self: UIViewController {
     
-    /// Loads embedded view controllers.
+    /// A communication interface from this view to a specific interactor of this module.
+    ///
+    /// For example, simple interface for the authentication interactor:
+    ///
+    ///     protocol AuthViewToInteractorInterface {
+    ///
+    ///         func userEntersUsername(_ username: String) -> Void
+    ///
+    ///         func userEntersPassword(_ password: String) -> Void
+    ///
+    ///         func userTapsLoginButton() -> Void
+    ///
+    ///     }
+    ///
+    associatedtype InteractorInterface
+    
+    /// An interactor that is responsible for all business logic of a module.
+    var interactor: InteractorInterface? { get }
+    
+    /// Loads embedded view controllers of this module.
     ///
     /// This method is used when the module has embedded children.
     /// So you load the view controllers of these modules in the following way:
@@ -13,9 +54,7 @@ public protocol RAView: RAComponent, RAIntegratable where Self: UIViewController
     ///     func loadEmbeddedViewControllers() -> Bool {
     ///         guard let messagesViewController = embeddedChildren["Messages"],
     ///               let settingsViewController = embeddedChildren["Settings"]
-    ///         else {
-    ///             return false
-    ///         }
+    ///         else { return false }
     ///         self.messagesViewController = messagesViewController
     ///         self.settingsViewController = settingsViewController
     ///         return true
@@ -35,12 +74,17 @@ extension RAView {
     public var type: String { "View" }
     
     /// A module into which this view is integrated.
-    /// - Note: It's the default implementation of this property that uses internal properties.
+    /// - Note: The compiler provides default implementation of this property using internal properties.
     /// If you replace this implementation, you won't access this module.
     public var module: RAModuleInterface? { _module }
     
+    /// An interactor that is responsible for all business logic of a module.
+    /// - Note: The compiler provides default implementation of this property using internal properties.
+    /// If you replace this implementation, you won't access this interactor.
+    public var interactor: InteractorInterface? { _interactor as? InteractorInterface }
+    
     /// The dictionary that stores view controllers of embedded child modules by their names.
-    /// - Note: It's the default implementation of this property that uses internal properties.
+    /// - Note: The compiler provides default implementation of this property using internal properties.
     /// If you replace this implementation, you won't access these view controllers.
     public var embeddedChildren: [String: UIViewController] {
         guard let module = _module else { return [:] }
