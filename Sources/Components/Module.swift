@@ -31,50 +31,51 @@
 // Lifecycle methods
 // -----------------
 //
-// Below is a method chaining that includes main lifecycle methods:
+// Below is a method chaining that includes main lifecycle methods of each component:
 //
-// | Module  | Interactor | Router  | View  | Builder |
-// +–––––––––+––––––––––––+–––––––––+–––––––+–––––––––+
-//                                    viewDidLoad()
-// + - - - - +- - - - - - + - - - - + - - - + - - - - +
+// | Module  | Interactor  | Router  | View  | Builder |
+// +–––––––––+–––––––––––––+–––––––––+–––––––+–––––––––+
+//                                     viewDidLoad()
+// + - - - - + - - - - - - + - - - - + - - - + - - - - +
 //  assemble()
 //  setup()
-// + - - - - +- - - - - - + - - - - + - - - + - - - - +
+// + - - - - + - - - - - - + - - - - + - - - + - - - - +
 //  canLoad(with:)
 //             moduleCanLoad(with:)
-//                                    loadEmbeddedViewControllers()
-// + - - - - +- - - - - - + - - - - + - - - + - - - - +
+//                           setupContainerController()
+//                                     loadEmbeddedViewControllers()
+// + - - - - + - - - - - - + - - - - + - - - + - - - - +
 //  load()
-//             setup()
-//                          setup()
-//                                    setup()
-//                                            setup()
+//              setup()
+//                           setup()
+//                                     setup()
+//                                             setup()
 //             moduleDidLoad()
-// + - - - - +- - - - - - + - - - - + - - - + - - - - +
+// + - - - - + - - - - - - + - - - - + - - - + - - - - +
 //  canStart(with:)
 //             moduleCanStart(with:)
-// + - - - - +- - - - - - + - - - - + - - - + - - - - +
+// + - - - - + - - - - - - + - - - - + - - - + - - - - +
 //             moduleWillStart()
 //  start()
-//                                    viewWillAppear()
-//                                    viewDidAppear()
+//                                     viewWillAppear()
+//                                     viewDidAppear()
 //             moduleDidStart()
-// + - - - - +- - - - - - + - - - - + - - - + - - - - +
+// + - - - - + - - - - - - + - - - - + - - - + - - - - +
 //             moduleWillStop()
+//                                     viewWillDisappear()
+//                                     viewDidDisappear()
+//  stop()
 //  result()
 //             result()
-//  stop()
-//                                    viewWillDisappear()
-//                                    viewDidDisappear()
 //             moduleDidStop()
-// + - - - - +- - - - - - + - - - - + - - - + - - - - +
+// + - - - - + - - - - - - + - - - - + - - - + - - - - +
 //             moduleWillUnload()
 //  unload()
 //  clean()
 //             clean()
-//                          clean()
-//                                    clean()
-//                                            clean()
+//                           clean()
+//                                     clean()
+//                                             clean()
 //  disassemble()
 //
 
@@ -312,9 +313,8 @@ open class RAModule: RAModuleInterface {
     /// Handles a work result from the given child module.
     private func handleResult(from child: RAModule) -> Void {
         guard child.isActive else { return }
-        if let childResult = child.result() {
-            dataHandler.child(child.name, didPassResult: childResult)
-        }
+        let childResult = child.result()
+        dataHandler.child(child.name, didPassResult: childResult)
     }
     
     /// Returns the work result of this module.
@@ -357,7 +357,7 @@ open class RAModule: RAModuleInterface {
     ///
     /// The invoking process represents the building, loading and starting a specific child module,
     /// or starting a child module that was already preloaded.
-    internal final func invokeChild(byName childName: String) -> Bool {
+    internal final func invokeChild(byName childName: String, animation showChildModule: RADefaultAnimation) -> Bool {
         guard isLoaded else {
             log("Couldn't invoke the `\(childName)` child module because this module wasn't loaded",
                 category: .moduleManagement, level: .error)
@@ -385,13 +385,13 @@ open class RAModule: RAModuleInterface {
             }
             child = newChild
         }
-        return start(child)
+        return start(child, animation: showChildModule)
     }
     
     /// Revokes a specific child module by its associated name.
     ///
     /// The invoking process represents the stopping (and sometimes unloading) child module.
-    internal final func revokeChild(byName childName: String) -> Bool {
+    internal final func revokeChild(byName childName: String, animation hideChildModule: RADefaultAnimation) -> Bool {
         guard isLoaded else {
             log("Couldn't revoke the `\(childName)` child module because this module wasn't loaded",
                 category: .moduleManagement, level: .error)
@@ -408,7 +408,7 @@ open class RAModule: RAModuleInterface {
             return false
         }
         guard child.isActive else { return true }
-        return stop(child) && (child.isUnloadedIfCompleted ? unload(child) : true)
+        return stop(child, animation: hideChildModule) && (child.isUnloadedIfCompleted ? unload(child) : true)
     }
     
     
@@ -419,7 +419,7 @@ open class RAModule: RAModuleInterface {
     /// The starting process includes providing a context to the given child.
     /// - Returns: `True` if the child module has been started; otherwise, `false`.
     @discardableResult
-    private func start(_ child: RAModule) -> Bool {
+    private func start(_ child: RAModule, animation show: RADefaultAnimation) -> Bool {
         guard isLoaded else {
             log("Couldn't start the `\(child.name)` child module because this module wasn't loaded",
                 category: .moduleManagement, level: .error)
@@ -449,6 +449,7 @@ open class RAModule: RAModuleInterface {
         }
         child.willStart()
         child.start()
+        show(child.view)
         child.didStart()
         return true
     }
@@ -458,7 +459,7 @@ open class RAModule: RAModuleInterface {
     /// The stopping process includes handling a work result of the given child module.
     /// - Returns: `True` if the child module has been stopped; otherwise, `false`.
     @discardableResult
-    private func stop(_ child: RAModule) -> Bool {
+    private func stop(_ child: RAModule, animation hide: RADefaultAnimation) -> Bool {
         guard isLoaded else {
             log("Couldn't stop the `\(child.name)` child module because this module wasn't loaded",
                 category: .moduleManagement, level: .error)
@@ -482,8 +483,9 @@ open class RAModule: RAModuleInterface {
             return false
         }
         child.willStop()
-        handleResult(from: child)
+        hide(child.view)
         child.stop()
+        handleResult(from: child)
         child.didStop()
         return true
     }
@@ -628,6 +630,12 @@ open class RAModule: RAModuleInterface {
         return true
     }
     
+    /// Embedes the given modules by attaching it to the module tree.
+    private func embed(builtModules: [String: RAModule]) -> Void {
+        builtModules.values.forEach { attach($0) }
+        namesOfEmbeddedChildren = builtModules.keys.asArray
+    }
+    
     
     // MARK: - Lifecycle
     
@@ -639,10 +647,10 @@ open class RAModule: RAModuleInterface {
     /// then this module cannot be loaded too.
     /// - Returns: `True` if module can be loaded; otherwise, `false`.
     internal final func canLoad(with dependency: RADependency?) -> Bool {
-        var builtChildrenThatShouldBeEmbedded = [String: RAModule]()
+        var builtChildren = [String: RAModule]()
         for childName in namesOfChildrenThatShouldBeEmbedded {
             if let builtChild = buildChild(byName: childName) {
-                builtChildrenThatShouldBeEmbedded[childName] = builtChild
+                builtChildren[childName] = builtChild
             } else {
                 guard isDependentOnEmbeddedModules == false else {
                     log("Couldn't be loaded because the `\(childName)` embedded module wasn't built",
@@ -651,7 +659,7 @@ open class RAModule: RAModuleInterface {
                 }
             }
         }
-        for child in builtChildrenThatShouldBeEmbedded.values {
+        for child in builtChildren.values {
             let childCanLoad = provideDependency(to: child)
             if childCanLoad == false {
                 guard isDependentOnEmbeddedModules == false else {
@@ -659,7 +667,7 @@ open class RAModule: RAModuleInterface {
                         category: .moduleLifecycle, level: .error)
                     return false
                 }
-                builtChildrenThatShouldBeEmbedded.removeValue(forKey: child.name)
+                builtChildren.removeValue(forKey: child.name)
             }
         }
         let thisModuleCanLoad = lifecycleDelegate.moduleCanLoad(with: dependency)
@@ -668,8 +676,12 @@ open class RAModule: RAModuleInterface {
                 category: .moduleLifecycle, level: .error)
             return false
         }
-        builtChildrenThatShouldBeEmbedded.values.forEach { attach($0) }
-        namesOfEmbeddedChildren = builtChildrenThatShouldBeEmbedded.keys.asArray
+        embed(builtModules: builtChildren)
+        guard router.setupContainerController() else {
+            log("Couldn't be loaded because the router didn't setup a contrainer controller",
+                category: .moduleLifecycle, level: .error)
+            return false
+        }
         guard view.loadEmbeddedViewControllers() else {
             log("Couldn't be loaded because the view didn't load embedded children",
                 category: .moduleLifecycle, level: .error)
@@ -943,7 +955,7 @@ public protocol RAModuleDataHandler where Self: RAAnyObject {
     func child(_ childName: String, didPassValue value: Any, withLabel label: String) -> Void
     
     /// Handles the work result of a specific child module.
-    func child(_ childName: String, didPassResult result: RAResult) -> Void
+    func child(_ childName: String, didPassResult result: RAResult?) -> Void
     
 }
 
