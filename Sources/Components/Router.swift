@@ -1,5 +1,11 @@
 import UIKit
 
+// Implementation notes
+// ====================
+//
+// Embedded child modules are already built, loaded and automatically started/stoped.
+// That is, there's no need to call the `invokeChildModule(byName:animation:)` method.
+
 open class RARouter: RAComponent, RAIntegratable {
     
     // MARK: - Properties
@@ -26,6 +32,14 @@ open class RARouter: RAComponent, RAIntegratable {
     
     /// The array of names of child modules that should be added to the tab bar.
     private var namesOfChildrenThatShouldBeTabs = [String]()
+    
+    /// The dictionary that stores routers of embedded child modules by their names.
+    private var embeddedChildren: [String: RARouter] {
+        guard let module = _module else { return [:] }
+        var dict = [String: RARouter]()
+        module.embeddedChildren.forEach { dict[$0.key] = $0.value.router }
+        return dict
+    }
     
     
     // MARK: View Controllers
@@ -91,18 +105,14 @@ open class RARouter: RAComponent, RAIntegratable {
                 category: .moduleRouting, level: .error)
             return false
         }
-        guard let childViewController = child.viewController else {
-            log("Couldn't present the `\(childName)` child module because it didn't have a view",
-                category: .moduleRouting,
-                level: .error)
-            return false
+        let presentChildViewController: RADefaultAnimation = { childViewController in
+            viewControllerThatPresents.present(childViewController, animated: animated, completion: completion)
         }
-        guard module.invokeChild(byName: childName) else {
+        guard module.invokeChild(byName: childName, animation: presentChildViewController) else {
             log("Couldn't present the `\(childName)` child module because it wasn't invoked",
                 category: .moduleRouting, level: .error)
             return false
         }
-        viewControllerThatPresents.present(childViewController, animated: animated, completion: completion)
         child.currentTransition = .present
         return true
     }
@@ -134,17 +144,19 @@ open class RARouter: RAComponent, RAIntegratable {
                 category: .moduleRouting, level: .error)
             return false
         }
-        guard child.currentTransition == .present, let childViewController = child.viewController else {
+        guard child.currentTransition == .present else {
             log("Couldn't dismiss the `\(childName)` child module because it wan't presented",
                 category: .moduleRouting, level: .error)
             return false
         }
-        guard module.revokeChild(byName: childName) else {
+        let dismissChildViewController: RADefaultAnimation = { childViewController in
+            childViewController.dismiss(animated: animated, completion: completion)
+        }
+        guard module.revokeChild(byName: childName, animation: dismissChildViewController) else {
             log("Couldn't dismiss the `\(childName)` child module because it wasn't revoked",
                 category: .moduleRouting, level: .error)
             return false
         }
-        childViewController.dismiss(animated: animated, completion: completion)
         child.currentTransition = nil
         return true
     }
@@ -155,8 +167,7 @@ open class RARouter: RAComponent, RAIntegratable {
     /// Pushes a view controller of a specific child module onto a navigation stack.
     ///
     /// This method represents the building, loading, starting and pushing a child module.
-    /// You can push a child module in two cases: (1) if this module has a view that is a navigation controller,
-    /// or (2) if this module is pushed by another navigation controller.
+    /// You can push a child module only if this module is pushed by another navigation controller.
     /// - Note: When the **A** module pushes the **B** child module, **A** shares a navigation controller to **B**.
     /// That is, **B** is also able to push its child modules.
     /// - Parameter childName: The associated name of a module to be pushed.
@@ -177,43 +188,41 @@ open class RARouter: RAComponent, RAIntegratable {
                 category: .moduleRouting, level: .error)
             return false
         }
-        let anyNavigationController: UINavigationController
-        let anyNavigationRouter: RARouter
-        if let navigationController {
-            guard navigationController.viewControllers.isEmpty else {
-                log("Couldn't push the `\(childName)` child module because this router already pushed the root view controller",
-                    category: .moduleRouting, level: .error)
-                return false
-            }
-            anyNavigationController = navigationController
-            anyNavigationRouter = self
-        } else {
-            guard let sharedNavigationRouter, let sharedNavigationController = sharedNavigationRouter.navigationController else {
-                log("Couldn't push the `\(childName)` child module because this router didn't have any navigation controller",
-                    category: .moduleRouting, level: .error)
-                return false
-            }
-            guard sharedNavigationController.topViewController === viewController else {
-                log("Couldn't push the `\(childName)` child module because this module wasn't on the navigation stack",
-                    category: .moduleRouting, level: .error)
-                return false
-            }
-            anyNavigationController = sharedNavigationController
-            anyNavigationRouter = sharedNavigationRouter
+        guard navigationController.isNil else {
+            log("Couldn't push the `\(childName)` child module because this routred already set a root view controller",
+                category: .moduleRouting, level: .error)
+            return false
         }
-        guard module.invokeChild(byName: childName) else {
+        guard let sharedNavigationRouter, let sharedNavigationController = sharedNavigationRouter.navigationController else {
+            log("Couldn't push the `\(childName)` child module because this router didn't have any navigation controller",
+                category: .moduleRouting, level: .error)
+            return false
+        }
+        guard sharedNavigationController.topViewController === viewController else {
+            log("Couldn't push the `\(childName)` child module because this module wasn't on the navigation stack",
+                category: .moduleRouting, level: .error)
+            return false
+        }
+        guard nameOfpushedChildModule.isNil else {
+            log("Couldn't push the `\(childName)` child module because this module already pushed another child module",
+                category: .moduleRouting, level: .error)
+            return false
+        }
+        guard module.loadChild(byName: childName), let child = module.router(of: .child(childName)) else {
+            log("Couldn't push the `\(childName)` child module because it wasn't loaded",
+                category: .moduleRouting, level: .error)
+            return false
+        }
+        let pushChildViewController: RADefaultAnimation = { childViewController in
+            sharedNavigationController.push(childViewController, animated: animated, completion: completion)
+        }
+        guard module.invokeChild(byName: childName, animation: pushChildViewController) else {
             log("Couldn't push the `\(childName)` child module because it wasn't invoked",
                 category: .moduleRouting, level: .error)
             return false
         }
-        guard let child = module.router(of: .child(childName)), let childViewController = child.viewController else {
-            log("Couldn't push the `\(childName)` child module because it didn't have a view controller",
-                category: .moduleRouting, level: .error)
-            return false
-        }
-        anyNavigationController.push(childViewController, animated: animated, completion: completion)
-        child.sharedNavigationRouter = anyNavigationRouter
         nameOfpushedChildModule = childName
+        child.sharedNavigationRouter = sharedNavigationRouter
         child.currentTransition = .push
         return true
     }
@@ -265,10 +274,14 @@ open class RARouter: RAComponent, RAIntegratable {
                 category: .moduleRouting, level: .error)
             return false
         }
+        guard nameOfpushedChildModule == childName else {
+            log("Couldn't pop the `\(childName)` child module because this router didn't push it",
+                category: .moduleRouting, level: .error)
+            return false
+        }
         guard navigationController.isNil else {
             log("Couldn't pop the `\(childName)` child module because it was the root view controller",
                 category: .moduleRouting, level: .error)
-            // Because the navigator module can push only the root module
             return false
         }
         guard let sharedNavigationRouter, let sharedNavigationController = sharedNavigationRouter.navigationController else {
@@ -282,14 +295,17 @@ open class RARouter: RAComponent, RAIntegratable {
             // It's just to unwrap the value
             return false
         }
-        guard module.revokeChild(byName: childName) else {
+        let popChildViewController: RADefaultAnimation = { _ in
+            sharedNavigationController.popToViewController(viewController, animated: animated, completion: completion)
+        }
+        guard module.revokeChild(byName: childName, animation: popChildViewController) else {
             log("Couldn't pop the `\(childName)` child module because it wasn't revoked",
                 category: .moduleRouting, level: .error)
             return false
         }
-        sharedNavigationController.popToViewController(viewController, animated: animated, completion: completion)
         child.sharedNavigationRouter = nil
         child.currentTransition = nil
+        nameOfpushedChildModule = nil
         return true
     }
     
@@ -398,7 +414,7 @@ open class RARouter: RAComponent, RAIntegratable {
                 category: .moduleRouting, level: .error)
             return false
         }
-        guard let module = _module else {
+        guard _module.hasValue else {
             log("Couldn't push the \(childName) child module because this router didn't integrated into any module",
                 category: .moduleRouting, level: .error)
             return false
@@ -408,18 +424,12 @@ open class RARouter: RAComponent, RAIntegratable {
                 category: .moduleRouting, level: .error)
             return false
         }
-        guard childName != module.name else { return true }
         guard let tabIndex = namesOfTabModules.firstIndex(of: childName) else {
             log("Couldn't select the \(childName) child module because it wasn't a tab",
                 category: .moduleRouting, level: .error)
             return false
         }
-        guard module.invokeChild(byName: childName) else {
-            // Most likely, the embedded child module is already loaded and started, but just in case we check it
-            log("Couldn't select the \(childName) child module because it wasn't invoked",
-                category: .moduleRouting, level: .error)
-            return false
-        }
+        // An embedded child module is already invoked
         tabBarController.selectViewController(withIndex: tabIndex, completion: completion)
         return true
     }
@@ -428,30 +438,8 @@ open class RARouter: RAComponent, RAIntegratable {
     // MARK: - Setuping Controllers
     
     /// Setups a tab bar controller by setting view controllers of embedded child modules.
-    ///
-    /// Firstly, you must specify which modules are embedded, so you override the `setup` method of the module:
-    ///
-    ///     override func setup() -> Void {
-    ///             embedChildModule(byName: "Feed")
-    ///             embedChildModule(byName: "Messages")
-    ///             embedChildModule(byName: "Settings")
-    ///     }
-    ///
-    /// Then you call this method in the `setup()` method:
-    ///
-    ///     override func setup() -> Void {
-    ///         setupTabBarController(withTabs: ["Feed", "Messages", "Settings"])
-    ///     }
-    ///
-    /// - Important: The given names should match the corresponding name of the embedded child specified in the module.
-    /// If you want that all embedded modules are considered tabs, then do not call this method,
-    /// because embedded modules are considered tabs by default.
-    /// - Note: This method should be called in the `setup()` method.
-    /// - Parameter tabNames: The names of embedded child modules to become tabs.
-    /// - Returns: `True` if the child view controller are set for the tab bar controller; otherwise, `false`.
-    @discardableResult
-    public final func setupTabBarController(tabs tabNames: [String]? = nil) -> Bool {
-        let childNames: [String]
+    /// - Returns: `True` if the child view controller have been set; otherwise, `false`.
+    internal final func setupTabBarController() -> Bool {
         guard let tabBarController else {
             log("Couldn't setup a tab bar controller because this router didn't have it",
                 category: .moduleRouting, level: .error)
@@ -467,20 +455,15 @@ open class RARouter: RAComponent, RAIntegratable {
                 category: .moduleRouting, level: .error)
             return false
         }
-        if let tabNames {
-            guard module.namesOfEmbeddedChildren.contains(tabNames) else {
-                log("Couldn't setup a tab bar controller because some modules weren't embedded",
-                    category: .moduleRouting, level: .error)
-                return false
-            }
-            childNames = tabNames
+        guard embeddedChildren.isEmpty == false else {
+            log("Couldn't setup a tab bar controller because this router didn't have embedded children",
+                category: .moduleRouting, level: .error)
+            return false
         }
-        else {
-            childNames = module.namesOfEmbeddedChildren
-        }
+        let childNames = module.namesOfEmbeddedChildren
         var childViewControllers = [UIViewController]()
         for childName in childNames {
-            if let child = module.router(of: .child(childName)),
+            if let child = embeddedChildren[childName],
                let childViewController = child.viewController {
                 childViewControllers.append(childViewController)
                 namesOfTabModules.append(childName)
@@ -495,12 +478,10 @@ open class RARouter: RAComponent, RAIntegratable {
         return true
     }
     
-    /// Setups a navigation controller by pushing the root view controller of a specific child module.
-    /// - Note: This method should be called in the `setup()` method.
-    /// - Returns: `True` if the root view controller has been pushed; otherwise, `false`.
-    @discardableResult
-    public final func setupNavigationController(root childName: String) -> Bool {
-        guard let _ = navigationController else {
+    /// Setups a navigation controller by setting the root view controller of an embedded child module.
+    /// - Returns: `True` if the root view controller has been set; otherwise, `false`.
+    internal final func setupNavigationController() -> Bool {
+        guard let navigationController else {
             log("Couldn't setup a navigation controller because this router didn't have it",
                 category: .moduleRouting, level: .error)
             return false
@@ -510,12 +491,37 @@ open class RARouter: RAComponent, RAIntegratable {
                 category: .moduleRouting, level: .error)
             return false
         }
-        guard let _ = _module else {
+        guard _module.hasValue else {
             log("Couldn't setup a navigation controller because this router didn't integrated into any module",
                 category: .moduleRouting, level: .error)
             return false
         }
-        return pushChildModule(byName: childName, animated: false)
+        let embeddedChildren = embeddedChildren
+        guard embeddedChildren.count == 1, let child = embeddedChildren.first?.value else {
+            log("Couldn't setup a navigation controller because the module didn't have exactly one embedded module",
+                category: .moduleRouting, level: .error)
+            return false
+        }
+        guard let childViewController = child.viewController else {
+            log("Couldn't setup a navigation controller because it didn't have a view controller",
+                category: .moduleRouting, level: .error)
+            return false
+        }
+        navigationController.setViewControllers([childViewController], animated: false)
+        child.sharedNavigationRouter = self
+        child.currentTransition = .push
+        nameOfpushedChildModule = child.name
+        return true
+    }
+    
+    /// Setups a navigation or a tab bar controller if it exists.
+    internal final func setupContainerController() -> Bool {
+        if navigationController.hasValue {
+            return setupNavigationController()
+        } else if tabBarController.hasValue {
+            return setupTabBarController()
+        }
+        return true
     }
     
     
