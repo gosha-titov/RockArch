@@ -6,7 +6,20 @@ import UIKit
 // Embedded child modules are already built, loaded and automatically started/stoped.
 // That is, there's no need to call the `invokeChildModule(byName:animation:)` method.
 
-open class RARouter: RAComponent, RAIntegratable {
+/// A router that is responsible for the hierarchy of modules: showing and hiding child modules, completing this module.
+///
+/// The `RARouter` class defines the shared behavior that’s common to all routers.
+/// You almost always subclass the `RARouter` but you make minor changes,
+/// since each router has already defined all transitions between modules.
+///
+/// The router has a lifecycle consisting of the `setup()` and `clean()` methods,
+/// which are called when the module is attached to or detached from the module tree.
+/// You can override these to perform additional initialization on your properties and, accordingly, to clean them.
+///
+/// - Note: Each component can log messages by calling the `log(_:category:level:)` method.
+/// These messages are handled by the current black box with its loggers.
+///
+open class RARouter: RAComponent, RAIntegratable, RARouterInterface {
     
     // MARK: - Properties
     
@@ -33,6 +46,11 @@ open class RARouter: RAComponent, RAIntegratable {
     /// The array of names of child modules that should be added to the tab bar.
     private var namesOfChildrenThatShouldBeTabs = [String]()
     
+    /// A router of a parent module.
+    private var parent: RARouter? {
+        return _module?.parent?.router
+    }
+    
     /// The dictionary that stores routers of embedded child modules by their names.
     private var embeddedChildren: [String: RARouter] {
         guard let module = _module else { return [:] }
@@ -57,6 +75,11 @@ open class RARouter: RAComponent, RAIntegratable {
         return viewController as? UITabBarController
     }
     
+    /// A navigation controllers that pushed a view controller of this module.
+    public final var sharedNavigationController: UINavigationController? {
+        return sharedNavigationRouter?.navigationController
+    }
+    
     /// A router with a navigation controllers that pushed a view controller of this module.
     internal weak var sharedNavigationRouter: RARouter?
     
@@ -71,6 +94,114 @@ open class RARouter: RAComponent, RAIntegratable {
     
     
     // MARK: - Routing
+    
+    /// Completes this module by hiding it from the screen.
+    ///
+    /// This method represents the hiding, stopping and unloading this module.
+    /// - Parameter animated: Specify `true` to animate the transition, or `false` if you do not want the transition to be animated.
+    /// The default value is `true`.
+    /// - Parameter completion: The block to execute after the view controller is hidden.
+    /// This block has no return value and takes no parameters. The default value is `nil`.
+    /// - Returns: `True` if the child module has been hidden; otherwise, `false`.
+    @discardableResult
+    public final func complete(animated: Bool = true, completion: (() -> Void)? = nil) -> Bool {
+        guard isActive else {
+            log("Couldn't complete the module this router wasn't active",
+                category: .moduleRouting, level: .error)
+            return false
+        }
+        guard let parent, let module = _module else {
+            log("Couldn't complete the module because it didn't have a parent module",
+                category: .moduleRouting, level: .error)
+            return false
+        }
+        guard let _ = currentTransition else {
+            log("Couldn't complete the module because it wasn't shown",
+                category: .moduleRouting, level: .error)
+            return false
+        }
+        return parent.hideChildModule(byName: module.name, animated: animated, completion: completion)
+    }
+    
+    /// Show a view controller of a specific child module by using its preferred transition.
+    ///
+    /// This method represents the building, loading, starting and showing a child module.
+    /// - Parameter childName: The associated name of a module to be shown.
+    /// - Parameter animated: Specify `true` to animate the transition, or `false` if you do not want the transition to be animated.
+    /// The default value is `true`.
+    /// - Parameter completion: The block to execute after the showing finishes.
+    /// This block has no return value and takes no parameters. The default value is `nil`.
+    /// - Returns: `True` if the child module has been shown; otherwise, `false`.
+    @discardableResult
+    public final func showChildModule(byName childName: String, animated: Bool = true, completion: (() -> Void)? = nil) -> Bool {
+        guard isActive else {
+            log("Couldn't show the `\(childName)` child module because this router wasn't active",
+                category: .moduleRouting, level: .error)
+            return false
+        }
+        guard let module = _module else {
+            log("Couldn't show the `\(childName)` child module because this router didn't integrated into a module",
+                category: .moduleRouting, level: .error)
+            return false
+        }
+        guard module.loadChild(byName: childName), let child = module.router(of: .child(childName)) else {
+            log("Couldn't show the `\(childName)` child module because it wasn't loaded",
+                category: .moduleRouting, level: .error)
+            return false
+        }
+        guard let childPreferredTransition = child.preferredTransition else {
+            log("Couldn't show the `\(childName)` child module because it had no set preferred transition",
+                category: .moduleRouting, level: .error)
+            return false
+        }
+        switch childPreferredTransition {
+        case .present: return presentChildModule(byName: childName, animated: animated, completion: completion)
+        case .push:    return pushChildModule   (byName: childName, animated: animated, completion: completion)
+        case .select:  return selectChildModule (byName: childName,                     completion: completion)
+        }
+    }
+    
+    /// Hides a view controller of a specifc child module in the reverse way to how it was shown.
+    ///
+    /// This method represents the hiding, stopping and unloading a child module.
+    /// - Parameter childName: The associated name of a module to be dismissed.
+    /// - Parameter animated: Specify `true` to animate the transition, or `false` if you do not want the transition to be animated.
+    /// The default value is `true`.
+    /// - Parameter completion: The block to execute after the view controller is dismissed.
+    /// This block has no return value and takes no parameters. The default value is `nil`.
+    /// - Returns: `True` if the child module has been dismissed; otherwise, `false`.
+    @discardableResult
+    public final func hideChildModule(byName childName: String, animated: Bool = true, completion: (() -> Void)? = nil) -> Bool {
+        guard isActive else {
+            log("Couldn't hide the `\(childName)` child module because this router wasn't active",
+                category: .moduleRouting, level: .error)
+            return false
+        }
+        guard let module = _module else {
+            log("Couldn't hide the `\(childName)` child module because this router didn't integrated into a module",
+                category: .moduleRouting, level: .error)
+            return false
+        }
+        guard let child = module.router(of: .child(childName)) else {
+            log("Couldn't hide the `\(childName)` uknown child module",
+                category: .moduleRouting, level: .error)
+            return false
+        }
+        guard let childCurrentTransition = child.currentTransition else {
+            log("Couldn't hide the `\(childName)` child module becuase it wasn't shown",
+                category: .moduleRouting, level: .error)
+            return false
+        }
+        switch childCurrentTransition {
+        case .present: return dismissChildModule(byName: childName, animated: animated, completion: completion)
+        case .push:    return popChildModule    (byName: childName, animated: animated, completion: completion)
+        case .select:
+            log("Couldn't hide the `\(childName)` embedded child module",
+                category: .moduleRouting, level: .error)
+            return false
+        }
+    }
+    
     
     // MARK: Presenting and Dismissing
     
@@ -91,7 +222,7 @@ open class RARouter: RAComponent, RAIntegratable {
             return false
         }
         guard let module = _module else {
-            log("Couldn't present the `\(childName)` child module because this router didn't integrated into any module",
+            log("Couldn't present the `\(childName)` child module because this router didn't integrated into a module",
                 category: .moduleRouting, level: .error)
             return false
         }
@@ -135,7 +266,7 @@ open class RARouter: RAComponent, RAIntegratable {
             return false
         }
         guard let module = _module else {
-            log("Couldn't dismiss the `\(childName)` child module because this router didn't integrated into any module",
+            log("Couldn't dismiss the `\(childName)` child module because this router didn't integrated into a module",
                 category: .moduleRouting, level: .error)
             return false
         }
@@ -184,7 +315,7 @@ open class RARouter: RAComponent, RAIntegratable {
             return false
         }
         guard let module = _module else {
-            log("Couldn't push the `\(childName)` child module because this router didn't integrated into any module",
+            log("Couldn't push the `\(childName)` child module because this router didn't integrated into a module",
                 category: .moduleRouting, level: .error)
             return false
         }
@@ -235,6 +366,7 @@ open class RARouter: RAComponent, RAIntegratable {
     /// - Parameter completion: The block to execute after the view controllers are popped.
     /// This block has no return value and takes no parameters. The default value is `nil`.
     /// - Returns: `True` if the view controller of this module is at the top of the navigation stack; otherwise, `false`.
+    @discardableResult
     public final func popToThisModule(animated: Bool = true, completion: (() -> Void)? = nil) -> Bool {
         if let childName = nameOfpushedChildModule {
             return popChildModule(byName: childName, animated: animated, completion: completion)
@@ -253,6 +385,7 @@ open class RARouter: RAComponent, RAIntegratable {
     /// - Parameter completion: The block to execute after the view controller is popped.
     /// This block has no return value and takes no parameters. The default value is `nil`.
     /// - Returns: `True` if the child module has been popped; otherwise, `false`.
+    @discardableResult
     public final func popChildModule(byName childName: String, animated: Bool = true, completion: (() -> Void)? = nil) -> Bool {
         guard isActive else {
             log("Couldn't pop the `\(childName)` child module because this router wasn't active",
@@ -260,7 +393,7 @@ open class RARouter: RAComponent, RAIntegratable {
             return false
         }
         guard let module = _module else {
-            log("Couldn't pop the `\(childName)` child module because this router didn't integrated into any module",
+            log("Couldn't pop the `\(childName)` child module because this router didn't integrated into a module",
                 category: .moduleRouting, level: .error)
             return false
         }
@@ -317,6 +450,7 @@ open class RARouter: RAComponent, RAIntegratable {
     /// - Parameter completion: The block to execute after the view controllers are popped.
     /// This block has no return value and takes no parameters. The default value is `nil`.
     /// - Returns: `True` if the view controller of the root module is at the top of the navigation stack; otherwise, `false`.
+    @discardableResult
     public final func popToRootModule(animated: Bool, completion: (() -> Void)? = nil) -> Bool {
         guard isActive else {
             log("Couldn't pop to the root module because this router wasn't active",
@@ -348,7 +482,7 @@ open class RARouter: RAComponent, RAIntegratable {
             return false
         }
         guard let module = _module else {
-            log("Couldn't pop to the root child module because this router didn't integrated into any module",
+            log("Couldn't pop to the root child module because this router didn't integrated into a module",
                 category: .moduleRouting, level: .error)
             return false
         }
@@ -375,37 +509,10 @@ open class RARouter: RAComponent, RAIntegratable {
     
     /// Selects a view controller of a specific child module.
     ///
-    /// You can select a child module only when this module has a tab bar controller.
-    ///
-    /// In order to specify tab modules, you should override the `setup()` method of the module to which this router belongs
-    /// and embed specifc modules:
-    ///
-    ///     final class MainModule: RAModule {
-    ///
-    ///         override func setup() -> Void {
-    ///             embedChildModule(byName: "Feed")
-    ///             embedChildModule(byName: "Messages")
-    ///             embedChildModule(byName: "Settings")
-    ///         }
-    ///
-    ///     }
-    ///
-    /// And then add specific tab modules from them (if you don't call these below methods then they are considered as tabs by default):
-    ///
-    ///     final class MainRouter: RARouter {
-    ///
-    ///         override func setup() -> Void {
-    ///             addTabModule(byName: "Feed")
-    ///             addTabModule(byName: "Messages")
-    ///             addTabModule(byName: "Settings")
-    ///         }
-    ///
-    ///     }
-    ///
-    /// - Parameter childName: The associated name of a module to be selected.
+    /// You can select an embedded child module only when this module has a tab bar controller.
+    /// - Parameter childName: The associated name of an embedded module to be selected.
     /// - Parameter completion: The block to execute after the selecting finishes.
     /// This block has no return value and takes no parameters. The default value is `true.`
-    ///
     /// - Returns: `True` if the child module has been selected; otherwise, `false`.
     @discardableResult
     public final func selectChildModule(byName childName: String, completion: (() -> Void)? = nil) -> Bool {
@@ -415,7 +522,7 @@ open class RARouter: RAComponent, RAIntegratable {
             return false
         }
         guard _module.hasValue else {
-            log("Couldn't push the \(childName) child module because this router didn't integrated into any module",
+            log("Couldn't push the \(childName) child module because this router didn't integrated into a module",
                 category: .moduleRouting, level: .error)
             return false
         }
@@ -451,7 +558,7 @@ open class RARouter: RAComponent, RAIntegratable {
             return false
         }
         guard let module = _module else {
-            log("Couldn't setup a tab bar controller because this router didn't integrated into any module",
+            log("Couldn't setup a tab bar controller because this router didn't integrated into a module",
                 category: .moduleRouting, level: .error)
             return false
         }
@@ -492,7 +599,7 @@ open class RARouter: RAComponent, RAIntegratable {
             return false
         }
         guard _module.hasValue else {
-            log("Couldn't setup a navigation controller because this router didn't integrated into any module",
+            log("Couldn't setup a navigation controller because this router didn't integrated into a module",
                 category: .moduleRouting, level: .error)
             return false
         }
@@ -532,16 +639,8 @@ open class RARouter: RAComponent, RAIntegratable {
     /// This method is called when the module into which this router integrated is assembled and loaded into the module tree.
     /// You usually override this method to perform additional initialization on your private properties.
     ///
-    /// Most ofter you use this method in the following way:
-    ///
     ///     override func setup() -> Void {
-    ///         setupTabBarController(withTabs: ["Feed", "Messages", "Settings"])
-    ///     }
-    ///
-    /// or if this module has a navigation controller:
-    ///
-    ///     override func setup() -> Void {
-    ///         setupNavigationController(root: "Feed")
+    ///         preferredTransition = .present
     ///     }
     ///
     /// You don't need to call the `super` method.
@@ -577,5 +676,120 @@ extension RARouter {
         case push
         case select
     }
+    
+}
+
+
+/// A communication interface between an interactor and a router.
+public protocol RARouterInterface {
+    
+    /// Completes this module by hiding it from the screen.
+    ///
+    /// This method represents the hiding, stopping and unloading this module.
+    /// - Parameter animated: Specify `true` to animate the transition, or `false` if you do not want the transition to be animated.
+    /// The default value is `true`.
+    /// - Parameter completion: The block to execute after the view controller is hidden.
+    /// This block has no return value and takes no parameters. The default value is `nil`.
+    /// - Returns: `True` if the child module has been hidden; otherwise, `false`.
+    func complete(animated: Bool, completion: (() -> Void)?) -> Bool
+    
+    /// Show a view controller of a specific child module by using its preferred transition.
+    ///
+    /// This method represents the building, loading, starting and showing a child module.
+    /// - Parameter childName: The associated name of a module to be shown.
+    /// - Parameter animated: Specify `true` to animate the transition, or `false` if you do not want the transition to be animated.
+    /// The default value is `true`.
+    /// - Parameter completion: The block to execute after the showing finishes.
+    /// This block has no return value and takes no parameters. The default value is `nil`.
+    /// - Returns: `True` if the child module has been shown; otherwise, `false`.
+    func showChildModule(byName childName: String, animated: Bool, completion: (() -> Void)?) -> Bool
+    
+    /// Hides a view controller of a specifc child module in the reverse way to how it was shown.
+    ///
+    /// This method represents the hiding, stopping and unloading a child module.
+    /// - Parameter childName: The associated name of a module to be dismissed.
+    /// - Parameter animated: Specify `true` to animate the transition, or `false` if you do not want the transition to be animated.
+    /// The default value is `true`.
+    /// - Parameter completion: The block to execute after the view controller is dismissed.
+    /// This block has no return value and takes no parameters. The default value is `nil`.
+    /// - Returns: `True` if the child module has been dismissed; otherwise, `false`.
+    func hideChildModule(byName childName: String, animated: Bool, completion: (() -> Void)?) -> Bool
+    
+    /// Presents a view controller of a specific child module modally.
+    ///
+    /// This method represents the building, loading, starting and presenting a child module.
+    /// - Parameter childName: The associated name of a module to be present.
+    /// - Parameter animated: Specify `true` to animate the transition, or `false` if you do not want the transition to be animated.
+    /// The default value is `true`.
+    /// - Parameter completion: The block to execute after the presentation finishes.
+    /// This block has no return value and takes no parameters. The default value is `nil`.
+    /// - Returns: `True` if the child module has been presented; otherwise, `false`.
+    func presentChildModule(byName childName: String, animated: Bool, completion: (() -> Void)?) -> Bool
+    
+    /// Dismesses a view controller of a specific child module that was presented modally.
+    ///
+    /// This method represents the dismissing, stopping and unloading a child module.
+    /// You can dismiss a child module only if its view controller was presented modally.
+    /// - Parameter childName: The associated name of a module to be dismissed.
+    /// - Parameter animated: Specify `true` to animate the transition, or `false` if you do not want the transition to be animated.
+    /// The default value is `true`.
+    /// - Parameter completion: The block to execute after the view controller is dismissed.
+    /// This block has no return value and takes no parameters. The default value is `nil`.
+    /// - Returns: `True` if the child module has been dismissed; otherwise, `false`.
+    func dismissChildModule(byName childName: String, animated: Bool, completion: (() -> Void)?) -> Bool
+    
+    /// Pushes a view controller of a specific child module onto a navigation stack.
+    ///
+    /// This method represents the building, loading, starting and pushing a child module.
+    /// You can push a child module only if this module is pushed by another navigation controller.
+    /// - Note: When the **A** module pushes the **B** child module, **A** shares a navigation controller to **B**.
+    /// That is, **B** is also able to push its child modules.
+    /// - Parameter childName: The associated name of a module to be pushed.
+    /// - Parameter animated: Specify `true` to animate the transition or `false` if you do not want the transition to be animated.
+    /// The default value is `true`.
+    /// - Parameter completion: The block to execute after the pushing finishes.
+    /// This block has no return value and takes no parameters. The default value is `nil`.
+    /// - Returns: `True` if the child module has been pushed; otherwise, `false`.
+    func pushChildModule(byName childName: String, animated: Bool, completion: (() -> Void)?) -> Bool
+    
+    /// Pops a view controller of a specific child module from the navigation stack.
+    ///
+    /// This method represents the popping, stopping and unloading a child module on the navigation stack.
+    /// - Parameter childName: The associated name of a module to be popped.
+    /// - Parameter animated: Specify `true` to animate the transition or `false` if you do not want the transition to be animated.
+    /// The default value is `true`.
+    /// - Parameter completion: The block to execute after the view controller is popped.
+    /// This block has no return value and takes no parameters. The default value is `nil`.
+    /// - Returns: `True` if the child module has been popped; otherwise, `false`.
+    func popChildModule(byName childName: String, animated: Bool, completion: (() -> Void)?) -> Bool
+    
+    /// Pops view controllers until the view controller of this module is at the top of the navigation stack.
+    ///
+    /// This method represents the popping, stopping and unloading child modules on the navigation stack.
+    /// - Parameter animated: Specify `true` to animate the transition or `false` if you do not want the transition to be animated.
+    /// The default value is `true`.
+    /// - Parameter completion: The block to execute after the view controllers are popped.
+    /// This block has no return value and takes no parameters. The default value is `nil`.
+    /// - Returns: `True` if the view controller of this module is at the top of the navigation stack; otherwise, `false`.
+    func popToThisModule(animated: Bool, completion: (() -> Void)?) -> Bool
+    
+    /// Pops all modules on the stack except the root module.
+    ///
+    /// This method represents the popping, stopping and unloading all modules on the navigation stack except the root module.
+    /// - Parameter animated: Specify `true` to animate the transition or `false` if you do not want the transition to be animated.
+    /// The default value is `true`.
+    /// - Parameter completion: The block to execute after the view controllers are popped.
+    /// This block has no return value and takes no parameters. The default value is `nil`.
+    /// - Returns: `True` if the view controller of the root module is at the top of the navigation stack; otherwise, `false`.
+    func popToRootModule(animated: Bool, completion: (() -> Void)?) -> Bool
+    
+    /// Selects a view controller of a specific child module.
+    ///
+    /// You can select an embedded child module only when this module has a tab bar controller.
+    /// - Parameter childName: The associated name of an embedded module to be selected.
+    /// - Parameter completion: The block to execute after the selecting finishes.
+    /// This block has no return value and takes no parameters. The default value is `true.`
+    /// - Returns: `True` if the child module has been selected; otherwise, `false`.
+    func selectChildModule(byName childName: String, completion: (() -> Void)?) -> Bool
     
 }
