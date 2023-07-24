@@ -22,8 +22,13 @@
 ///
 ///     }
 ///
-/// The builder also has a lifecycle consisting of the `setup()` and `clean()` methods.
-/// You can override these to perform additional initialization on your private properties and, accordingly, to clean them.
+/// The builder has a lifecycle consisting of the `setup()` and `clean()` methods,
+/// which are called when the module is attached to or detached from the module tree.
+/// You can override these to perform additional initialization on your properties and, accordingly, to clean them.
+///
+/// - Note: Each component can log messages by calling the `log(_:category:level:)` method.
+/// These messages are handled by the current black box with its loggers.
+///
 open class RABuilder: RAComponent, RAIntegratable {
     
     // MARK: - Properties
@@ -98,10 +103,11 @@ open class RABuilder: RAComponent, RAIntegratable {
     ///     }
     ///
     /// You don't need to call the `super` method.
+    /// - Returns: The built child module; otherwise, `nil`.
     open func build(by name: String) -> RAModule? { return nil }
     
     /// Builds a child module by its associated name.
-    /// - Returns: The created child module; otherwise, `nil`.
+    /// - Returns: The built child module; otherwise, `nil`.
     internal final func buildChildModule(byName childName: String) -> RAModule? {
         guard let child = build(by: childName) else {
             log("Couldn't build a module by name `\(childName)`",
@@ -116,7 +122,7 @@ open class RABuilder: RAComponent, RAIntegratable {
     
     /// Setups this builder before it starts working.
     ///
-    /// This method is called when the module into which this builder integrated is assembled but not yet loaded into the module tree.
+    /// This method is called when the module into which this builder integrated is assembled and loaded into the module tree.
     /// You usually override this method to perform additional initialization on your private properties.
     /// You don't need to call the `super` method.
     open func setup() -> Void {}
