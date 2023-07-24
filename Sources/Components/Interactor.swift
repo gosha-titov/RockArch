@@ -1,4 +1,38 @@
-open class RAInteractor: RAComponent, RAIntegratable, RAModuleLifecycleDelegate, RAModuleDataProvider, RAModuleDataHandler {
+/// An interactor that is responsible for all business logic of the module.
+///
+/// The `RAInteractor` class defines the shared behavior that’s common to all interactors.
+/// You always define a new class that subclasses the `RAInteractor` class,
+/// then override all logiсal methods necessary for: providing and handling module's data, managing its lifecycle, communicate with other interactors and so on.
+///
+/// In order to interact with the `view` component of the module, you use a specific communication interface.
+/// This is in order to clearly delineate the work of the components and ensure clarity of interactions between them.
+///
+/// Pay attention, the router already has this built-in interface to showing and hiding child modules, to complete this module.
+/// So you don't need to create and specify it.
+///
+/// The interactor has a lifecycle consisting of the `setup()` and `clean()` methods,
+/// which are called when the module is attached to or detached from the module tree.
+/// You can override these to perform additional initialization on your properties and, accordingly, to clean them.
+///
+/// - Note: Each component can log messages by calling the `log(_:category:level:)` method.
+/// These messages are handled by the current black box with its loggers.
+///
+open class RAInteractor<ViewInterface>: RAAnyInteractor {
+    
+    /// A router that is responsible for the hierarchy of modules: showing and hiding child modules, completing the module.
+    public final var router: RARouterInterface? { _router }
+    
+    /// A view that is responsible for configurating and updating UI, catching and handling user interactions.
+    public final var view: ViewInterface? { _view as? ViewInterface }
+    
+    public override init() {
+        super.init()
+    }
+    
+}
+
+/// An interactor that has implementations of the main properties and methods.
+open class RAAnyInteractor: RAComponent, RAIntegratable, RAModuleLifecycleDelegate, RAModuleDataProvider, RAModuleDataHandler {
     
     // MARK: - Properties
     
@@ -18,6 +52,89 @@ open class RAInteractor: RAComponent, RAIntegratable, RAModuleLifecycleDelegate,
     
     /// An internal view of this module.
     internal weak var _view: (any RAView)?
+    
+    
+    // MARK: - Communication and Interaction
+    
+    /// Passes some named value to a specific module.
+    ///
+    /// You usually call this method as in the following example:
+    ///
+    ///     // Pass a current score to a parent module
+    ///     pass(value: currentScore, withLabel: "current_score", to: .parent)
+    ///
+    ///     // Pass a new color scheme to all modules
+    ///     pass(
+    ///         value: ColorScheme.sunrise,
+    ///         withLabel: "new_color_scheme",
+    ///         to: .global(.all)
+    ///     )
+    ///
+    /// - Returns: `True` if the receiver (or at least one of them) has handled this value; otherwise, `false`.
+    @discardableResult
+    public final func pass(value: Any, withLabel label: String, to receiver: RAReceiver) -> Bool {
+        guard let module = _module else {
+            log("Couldn't pass a value because this interactor didn't integrated into a module",
+                category: .moduleCommunication, level: .error)
+            return false
+        }
+        let signal = RASignal(label: label, value: value)
+        return module.send(signal, to: receiver)
+    }
+    
+    /// Returns an instance of a parent interactor casted to the given interface.
+    ///
+    /// You usually use this method when it's not enough for you to simply pass/handle some data to/from a parent interactor,
+    /// so you create a communication interface to the parent interactor.
+    /// Then you define a computed property as in the example below:
+    ///
+    ///     var parent: SomeInterface? {
+    ///         return parent(as: SomeInterface.self)
+    ///     }
+    ///
+    /// For example, this interactor belongs to the `Feed` module and you need to interact with the `Main` parent interactor:
+    ///
+    ///     var parent: FeedToMainInterface? {
+    ///         return parent(as: FeedToMainInterface.self)
+    ///     }
+    ///
+    /// - Note: You don't should storage this instance directly, because it can lead to implicit errors.
+    /// - Returns: An instance of a parent interactor casted to the given interface; otherwise, `nil`.
+    public final func parent<Interface>(as: Interface.Type) -> Interface? {
+        guard let module = _module else {
+            log("Couldn't take a parent interactor because this interactor didn't integrated into a module",
+                category: .moduleInteracting, level: .error)
+            return nil
+        }
+        return module.interactor(of: .parent) as? Interface
+    }
+    
+    /// Returns an instance of a specific child interactor casted to the given interface.
+    ///
+    /// You usually use this method when it's not enough for you to simply pass/handle some data to/from a specific child interactor,
+    /// so you create a communication interface to this child interactor.
+    /// Then you define a computed property as in the example below:
+    ///
+    ///     var someChild: SomeInterface? {
+    ///         return child("Some", as: SomeInterface.self)
+    ///     }
+    ///
+    /// For example, this interactor belongs to the `Main` module and you need to interact with the `Feed` child interactor:
+    ///
+    ///     var profileModule: MainToFeedInterface? {
+    ///         return child("Feed", as: MainToFeedInterface.self)
+    ///     }
+    ///
+    /// - Note: You don't should storage this instance directly, because it can lead to implicit errors.
+    /// - Returns: An instance of a specific child interactor casted to the given interface; otherwise, `nil`.
+    public final func child<Interface>(_ childName: String, as: Interface.Type) -> Interface? {
+        guard let module = _module else {
+            log("Couldn't take a child interactor because this interactor didn't integrated into a module",
+                category: .moduleInteracting, level: .error)
+            return nil
+        }
+        return module.interactor(of: .child(childName)) as? Interface
+    }
     
     
     // MARK: - Module Data Handler
@@ -205,7 +322,7 @@ open class RAInteractor: RAComponent, RAIntegratable, RAModuleLifecycleDelegate,
     // MARK: - Init and Deinit
     
     /// Creates an interactor instance.
-    public init() {
+    fileprivate init() {
         RALeakDetector.register(self)
     }
     
