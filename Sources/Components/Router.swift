@@ -6,7 +6,7 @@ import UIKit
 // Embedded child modules are already built, loaded and automatically started/stoped.
 // That is, there's no need to call the `invokeChildModule(byName:animation:)` method.
 
-/// A router that is responsible for the hierarchy of modules: showing and hiding child modules, completing this module.
+/// A router that is responsible for the hierarchy of modules: showing and hiding child modules, completing the module.
 ///
 /// The `RARouter` class defines the shared behavior that’s common to all routers.
 /// You almost always subclass the `RARouter` but you make minor changes,

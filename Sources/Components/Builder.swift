@@ -69,8 +69,8 @@ open class RABuilder: RAComponent, RAIntegratable {
     ///             name: "Messages",
     ///             interactor: MessagesInteractor(),
     ///             router:     MessagesRouter(),
-    ///             view:       MessagesView(),    // optional
-    ///             builder:    MessagesBuilder(), // optional
+    ///             view:       MessagesView(),
+    ///             builder:    MessagesBuilder()
     ///         )
     ///     }
     ///
@@ -84,8 +84,8 @@ open class RABuilder: RAComponent, RAIntegratable {
     ///                 name: "Messages",
     ///                 interactor: MessagesInteractor(),
     ///                 router:     MessagesRouter(),
-    ///                 view:       MessagesView(),    // optional
-    ///                 builder:    MessagesBuilder(), // optional
+    ///                 view:       MessagesView(),
+    ///                 builder:    MessagesBuilder()
     ///             )
     ///         }
     ///

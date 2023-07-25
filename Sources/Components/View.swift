@@ -106,7 +106,7 @@ extension RAView {
     }
     
     /// An internal interactor of this module.
-    internal var _interactor: RAInteractor? {
+    internal var _interactor: RAAnyInteractor? {
         get {
             let storage = RAWeakInteractorStorage.shared
             return storage[debugDescription]
