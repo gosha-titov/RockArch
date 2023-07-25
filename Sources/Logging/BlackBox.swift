@@ -122,7 +122,7 @@ extension RABlackBox {
     /// - Parameter category: The string that describes a category of this message.
     /// - Parameter level:    The level associated how important this message is.
     public static func log(_ message: String, author: String, category: String, level: RALogLevel, fileID: String = #fileID, function: String = #function, line: Int = #line) -> Void {
-        current.log(message, author: author, category: category, level: .trace, fileID: fileID, function: function, line: line)
+        current.log(message, author: author, category: category, level: level, fileID: fileID, function: function, line: line)
     }
     
     /// Logs a specific message by passing it to the current black box and specifying the `.trace` log level.
