@@ -13,7 +13,7 @@ internal final class RAWeakModuleStorage: RAWeakStorage<RAModule> {
 
 
 /// A storage that weakly stores specific interactors.
-internal final class RAWeakInteractorStorage: RAWeakStorage<RAInteractor> {
+internal final class RAWeakInteractorStorage: RAWeakStorage<RAAnyInteractor> {
     
     /// The singleton weak interactor storage instance.
     internal static let shared = RAWeakInteractorStorage()
