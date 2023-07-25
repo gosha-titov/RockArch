@@ -433,7 +433,7 @@ open class RAModule: RAModuleInterface {
     
     /// Handles a work result from the given child module.
     private func handleResult(from child: RAModule) -> Void {
-        guard child.isActive else { return }
+        guard child.isInactive else { return }
         let childResult = child.result()
         dataHandler.child(child.name, didCompleteWith: childResult)
     }
