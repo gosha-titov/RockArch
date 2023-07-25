@@ -1,6 +1,6 @@
 /// A deep link that can open a specific module anywhere in the entire module tree along a given path.
 ///
-/// The builder design pattern is used to create of a deep link.
+/// The builder design pattern is used to create a deep link.
 /// For example, the link to the `Post` module may look like this:
 ///
 ///     let link = RADeepLink

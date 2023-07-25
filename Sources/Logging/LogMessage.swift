@@ -12,7 +12,7 @@ import os
 ///     message.category      // "User"
 ///     message.level         // .info
 ///     message.info.file.id  // "MindGame/MenuInteractor.swift"
-///     message.info.function // "child(_:didPassOutcome:)"
+///     message.info.function // "child(_:didCompleteWith:)"
 ///     message.info.line     // 132
 ///     message.timestamp     // "2023-06-09 14:05:43 +0000"
 ///     message.uuid          // "D24A7E1C-B5D9-4F53-B96F-C8B248172DF8"
