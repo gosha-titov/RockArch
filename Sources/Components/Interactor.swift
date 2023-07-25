@@ -143,19 +143,19 @@ open class RAAnyInteractor: RAComponent, RAIntegratable, RAModuleLifecycleDelega
     ///
     /// Override this method to process the passed data.
     /// You don't need to call the `super` method.
-    public func global(_ moduleName: String, didPass value: Any, with label: String) -> Void {}
+    open func global(_ moduleName: String, didPass value: Any, with label: String) -> Void {}
     
     /// Called when a parent interactor passes some named data.
     ///
     /// Override this method to handle the passed data.
     /// You don't need to call the `super` method.
-    public func parent(_ parentName: String, didPass value: Any, with label: String) -> Void {}
+    open func parent(_ parentName: String, didPass value: Any, with label: String) -> Void {}
     
     /// Called when a specific child interactor passes some named data.
     ///
     /// Override this method to handle this passed data.
     /// You don't need to call the `super` method.
-    public func child(_ childName: String, didPass value: Any, with label: String) -> Void {}
+    open func child(_ childName: String, didPass value: Any, with label: String) -> Void {}
     
     /// Called when a specific child interactor completes its work and passes some result.
     ///
@@ -171,7 +171,7 @@ open class RAAnyInteractor: RAComponent, RAIntegratable, RAModuleLifecycleDelega
     ///
     /// Override this method to handle this passed data and/or to start another child module.
     /// You don't need to call the `super` method.
-    public func child(_ childName: String, didCompleteWith result: RAResult?) -> Void {}
+    open func child(_ childName: String, didCompleteWith result: RAResult?) -> Void {}
     
     
     // MARK: - Module Data Provider
