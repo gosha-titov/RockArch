@@ -1031,7 +1031,7 @@ open class RAModule: RAModuleInterface {
     }
     
     deinit {
-        RALeakDetector.release(self)
+//        RALeakDetector.release(self)
         log("Deleted", category: .moduleLifecycle)
     }
     

@@ -327,7 +327,7 @@ open class RAAnyInteractor: RAComponent, RAIntegratable, RAModuleLifecycleDelega
     }
     
     deinit {
-        RALeakDetector.release(self)
+//        RALeakDetector.release(self)
     }
     
 }

@@ -143,7 +143,7 @@ open class RABuilder: RAComponent, RAIntegratable {
     }
     
     deinit {
-        RALeakDetector.release(self)
+//        RALeakDetector.release(self)
     }
     
 }

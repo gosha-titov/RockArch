@@ -662,7 +662,7 @@ open class RARouter: RAComponent, RAIntegratable, RARouterInterface {
     }
     
     deinit {
-        RALeakDetector.release(self)
+//        RALeakDetector.release(self)
     }
     
 }
