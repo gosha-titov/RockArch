@@ -1,3 +1,5 @@
+import UIKit // to launch from the window
+
 // Implementation notes
 // ====================
 //
@@ -79,6 +81,59 @@
 //  disassemble()
 //
 
+/// A module that is responsible for dividing the application into independent parts.
+///
+/// The `RAModule` class defines the shared behavior that’s common to all modules.
+/// You almost always subclass the `RAModule` but you make minor changes,
+/// since each module has already defined all behavior methods: organizing the module hierarchy (the module tree),
+/// establishing the relationship between modules, coordinating with them and so on.
+///
+/// The module consists of 4 components:
+/// - **Interactor** that is responsible for all business logic of this module;
+/// - **Router**  that is responsible for the hierarchy of modules: showing and hiding child modules, completing this module;
+/// - **View** that is responsible for configurating and updating UI, catching and handling user interactions;
+/// - **Builder** that is responsible for creating child modules by their associated names.
+///
+/// The module has an internal lifecycle consisting of loading, starting, stopping and unloading methods.
+/// In order to manage it, use the `lifecycleDelegate` property that is notified in case of changes.
+///
+/// The module also has two additional lifecycle methods: `setup()` and `clean()`,
+/// which are called when the module is attached to or detached from the module tree.
+/// You can override these to perform additional initialization on your properties and, accordingly, to clean them.
+///
+/// To be able to provide data to children and handle it from them, you use the `dataProvider` and `dataHandler` properties.
+/// Usually these three (including`lifecycleDelegate`) are the same object.
+/// By default, it's the interactor of this module, but you can change it by setting your values for them.
+///
+/// For starting the module tree, you call the `launch(from:)` method that will make this module the root.
+///
+/// For example, the main module may look like this:
+///
+///     final class MainModule: RAModule {
+///
+///         override func setup() -> Void {
+///             embedChildModule(byName: "Feed")
+///             embedChildModule(byName: "Messages")
+///             embedChildModule(byName: "Settings")
+///             isDependentOnEmbeddedModules = true
+///             isUnloadedIfCompleted = false
+///         }
+///
+///         init() {
+///             super.init(
+///                 name: "Main",
+///                 interactor: MainInteractor(),
+///                 router:     MainRouter(),
+///                 view:       MainView(),
+///                 builder:    MainBuilder()
+///             )
+///         }
+///
+///     }
+///
+/// - Note: Each component can log messages by calling the `log(_:category:level:)` method.
+/// These messages are handled by the current black box with its loggers.
+///
 open class RAModule: RAModuleInterface {
     
     // MARK: General Info
@@ -183,7 +238,7 @@ open class RAModule: RAModuleInterface {
     // MARK: Inner Components
     
     /// The internal interactor of this module.
-    internal let interactor: RAInteractor
+    internal let interactor: RAAnyInteractor
     
     /// The internal router of this module.
     internal let router: RARouter
@@ -207,10 +262,76 @@ open class RAModule: RAModuleInterface {
     public var dataHandler: RAModuleDataHandler
     
     
+    // MARK: - Launching
+    
+    /// Launches the module tree from the given window, making this module the root.
+    ///
+    /// Firstly, you define a new initialization to simplify the creation, as in the following example:
+    ///
+    ///     final class MainModule: RAModule {
+    ///
+    ///         override init() {
+    ///             super.init(
+    ///                 name: "Main",
+    ///                 interactor: MainInteractor(),
+    ///                 router:     MainRouter(),
+    ///                 view:       MainView(),
+    ///                 builder:    MainBuilder()
+    ///             )
+    ///         }
+    ///
+    ///     }
+    ///
+    /// Then you create the module and launch it by calling the `launch(from:)` method from the `SceneDelegate` class:
+    ///
+    ///     func scene(_ scene: UIScene, willConnectTo session: UISceneSession, options connectionOptions: UIScene.ConnectionOptions) {
+    ///
+    ///         guard let windowScene = (scene as? UIWindowScene) else { return }
+    ///         let window = UIWindow(windowScene: windowScene)
+    ///         self.window = window
+    ///
+    ///         let mainModule = MainModule()
+    ///         mainModule.launch(from: window)
+    ///     }
+    ///
+    /// - Parameter window: The window whose the `rootViewController` property will be used to display the view controllers of the module tree.
+    /// - Returns: `True` if this module has become the root; otherwise, `false`.
+    @discardableResult
+    public final func launch(from window: UIWindow) -> Bool {
+        guard canLoad(with: nil) else {
+            log("Couldn't be launched from the window because this module couldn't be loaded",
+                category: .moduleLifecycle, level: .error)
+            return false
+        }
+        if let root = RAModule.root, root.isActive {
+            root.willStop()
+            root.stop()
+            root.didStop()
+            root.willUnload()
+            root.unload()
+        }
+        window.rootViewController = view
+        window.makeKeyAndVisible()
+        RAModule.root = self
+        isRoot = true
+        load()
+        didLoad()
+        guard canStart(with: nil) else {
+            log("Couldn't be launched from the window because this module couldn't be started",
+                category: .moduleLifecycle, level: .error)
+            return false
+        }
+        willStart()
+        start()
+        didStart()
+        return true
+    }
+    
+    
     // MARK: - Interactions between Modules
     
     /// Returns an interactor of a specific related module.
-    internal final func interactor(of relative: RARelative) -> RAInteractor? {
+    internal final func interactor(of relative: RARelative) -> RAAnyInteractor? {
         switch relative {
         case .child(let childName): return children[childName]?.interactor
         case .parent: return parent?.interactor
@@ -291,21 +412,21 @@ open class RAModule: RAModuleInterface {
                     category: .moduleCommunication, level: .error)
                 return false
             }
-            dataHandler.global(globalName, didPassValue: signal.value, withLabel: signal.label)
+            dataHandler.global(globalName, didPass: signal.value, with: signal.label)
         case .parent(let parentName):
             guard let parent, parent.name == parentName else {
                 log("Couldn't handle the `\(signal)` signal from the `\(parentName)` unknown parent module",
                     category: .moduleCommunication, level: .error)
                 return false
             }
-            dataHandler.parent(parentName, didPassValue: signal.value, withLabel: signal.label)
+            dataHandler.parent(parentName, didPass: signal.value, with: signal.label)
         case .child(let childName):
             guard children.hasKey(childName) else {
                 log("Couldn't handle the `\(signal)` signal from the `\(childName)` unknown child module",
                     category: .moduleCommunication, level: .error)
                 return false
             }
-            dataHandler.child(childName, didPassValue: signal.value, withLabel: signal.label)
+            dataHandler.child(childName, didPass: signal.value, with: signal.label)
         }
         return true
     }
@@ -314,7 +435,7 @@ open class RAModule: RAModuleInterface {
     private func handleResult(from child: RAModule) -> Void {
         guard child.isActive else { return }
         let childResult = child.result()
-        dataHandler.child(child.name, didPassResult: childResult)
+        dataHandler.child(child.name, didCompleteWith: childResult)
     }
     
     /// Returns the work result of this module.
@@ -357,7 +478,7 @@ open class RAModule: RAModuleInterface {
     ///
     /// The invoking process represents the building, loading and starting a specific child module,
     /// or starting a child module that was already preloaded.
-    internal final func invokeChild(byName childName: String, animation showChildModule: RADefaultAnimation) -> Bool {
+    internal final func invokeChild(byName childName: String, animation show: RADefaultAnimation) -> Bool {
         guard isLoaded else {
             log("Couldn't invoke the `\(childName)` child module because this module wasn't loaded",
                 category: .moduleManagement, level: .error)
@@ -370,7 +491,10 @@ open class RAModule: RAModuleInterface {
         }
         let child: RAModule
         if let existingChild = children[childName] {
-            guard existingChild.isInactive else { return true }
+            guard existingChild.isInactive else {
+                show(existingChild.view)
+                return true
+            }
             child = existingChild
         } else {
             guard let newChild = buildChild(byName: childName) else {
@@ -385,13 +509,13 @@ open class RAModule: RAModuleInterface {
             }
             child = newChild
         }
-        return start(child, animation: showChildModule)
+        return start(child, animation: show)
     }
     
     /// Revokes a specific child module by its associated name.
     ///
     /// The invoking process represents the stopping (and sometimes unloading) child module.
-    internal final func revokeChild(byName childName: String, animation hideChildModule: RADefaultAnimation) -> Bool {
+    internal final func revokeChild(byName childName: String, animation hide: RADefaultAnimation) -> Bool {
         guard isLoaded else {
             log("Couldn't revoke the `\(childName)` child module because this module wasn't loaded",
                 category: .moduleManagement, level: .error)
@@ -408,7 +532,7 @@ open class RAModule: RAModuleInterface {
             return false
         }
         guard child.isActive else { return true }
-        return stop(child, animation: hideChildModule) && (child.isUnloadedIfCompleted ? unload(child) : true)
+        return stop(child, animation: hide) && (child.isUnloadedIfCompleted ? unload(child) : true)
     }
     
     
@@ -497,7 +621,7 @@ open class RAModule: RAModuleInterface {
     ///
     /// The loading process represents the building of the child module, attaching it to the module tree by adding it to children of this module and configuring it.
     /// - Returns: `True` if the given module was loaded successfully; otherwise, `false`.
-    internal final func loadChild(byName childName: String) -> Bool {
+    public final func loadChild(byName childName: String) -> Bool {
         guard isLoaded else {
             log("Couldn't load the `\(childName)` child module because this module wasn't loaded into memory",
                 category: .moduleManagement, level: .error)
@@ -520,14 +644,10 @@ open class RAModule: RAModuleInterface {
     /// The unloading process represents the detaching the given module from the module tree by removing it from children of this module and deconfiguring it.
     /// - Note: The child module should be inactive before being unloaded.
     /// - Returns: `True` if the child module has been unloaded from memory; otherwise, `false`.
-    internal final func unloadChild(byName childName: String) -> Bool {
-        guard let child = children[childName] else {
-            log("Couldn't unload the `\(childName)` child module because there's no loaded module with this name",
-                category: .moduleManagement, level: .warning)
-            return false
-        }
+    public final func unloadChild(byName childName: String) -> Bool {
+        guard let child = children[childName] else { return true }
         guard child.isInactive else {
-            log("Couldn't unload the `\(childName)` child module because it's active or suspended",
+            log("Couldn't unload the `\(childName)` child module because it's active",
                 category: .moduleManagement, level: .error)
             return false
         }
@@ -839,6 +959,7 @@ open class RAModule: RAModuleInterface {
     ///         embedChildModule(byName: "Settings")
     ///         isDependentOnEmbeddedModules = true
     ///         isUnloadedIfCompleted = false
+    ///         loadChildModule(byName: "Orders")
     ///     }
     ///
     /// You don't need to call the `super` method.
@@ -880,7 +1001,7 @@ open class RAModule: RAModuleInterface {
     /// It will be displayed in logs, paths, links, etc.
     ///
     /// - Parameter interactor: The interactor that is responsible for all business logic of this module.
-    /// It's also a built-in delegate of the module lifecycle and It can interact with other related interactors.
+    /// It's also a built-in delegate of the module lifecycle, data handling and providing and It can interact with other related interactors.
     /// Implement this by subclassing the `RAInteractor` class.
     ///
     /// - Parameter router: The router that is responsible for the hierarchy of modules.
@@ -894,7 +1015,7 @@ open class RAModule: RAModuleInterface {
     /// Implement this by subclassing the `RABuilder` class.
     /// If this module doesn't have child modules, then pass `nil` (default).
     ///
-    public init(name: String, interactor: RAInteractor, router: RARouter, view: any RAView, builder: RABuilder? = nil) {
+    public init(name: String, interactor: RAAnyInteractor, router: RARouter, view: any RAView, builder: RABuilder? = nil) {
         self.name = name
         self.interactor = interactor
         self.router = router
@@ -918,6 +1039,7 @@ open class RAModule: RAModuleInterface {
 
 
 
+/// A communication interface from a component to its module into which it is integrated.
 public protocol RAModuleInterface: RAComponent {
     
     /// A boolean value that indicates whether this module is loaded into the module tree.
@@ -946,16 +1068,16 @@ public protocol RAModuleDataProvider where Self: RAAnyObject {
 public protocol RAModuleDataHandler where Self: RAAnyObject {
     
     /// Handles the incoming value from a specific module from the entire module tree.
-    func global(_ moduleName: String, didPassValue value: Any, withLabel label: String) -> Void
+    func global(_ moduleName: String, didPass value: Any, with label: String) -> Void
     
     /// Handles the incoming value from a parent module.
-    func parent(_ parentName: String, didPassValue value: Any, withLabel label: String) -> Void
+    func parent(_ parentName: String, didPass value: Any, with label: String) -> Void
     
     /// Handles the incoming value from a specific child module.
-    func child(_ childName: String, didPassValue value: Any, withLabel label: String) -> Void
+    func child(_ childName: String, didPass value: Any, with label: String) -> Void
     
     /// Handles the work result of a specific child module.
-    func child(_ childName: String, didPassResult result: RAResult?) -> Void
+    func child(_ childName: String, didCompleteWith result: RAResult?) -> Void
     
 }
 
