@@ -102,7 +102,7 @@ import UIKit // to launch from the window
 /// You can override these to perform additional initialization on your properties and, accordingly, to clean them.
 ///
 /// To be able to provide data to children and handle it from them, you use the `dataProvider` and `dataHandler` properties.
-/// Usually these three (including`lifecycleDelegate`) are the same object.
+/// Usually these three (including `lifecycleDelegate`) are the same object.
 /// By default, it's the interactor of this module, but you can change it by setting your values for them.
 ///
 /// For starting the module tree, you call the `launch(from:)` method that will make this module the root.
@@ -491,10 +491,7 @@ open class RAModule: RAModuleInterface {
         }
         let child: RAModule
         if let existingChild = children[childName] {
-            guard existingChild.isInactive else {
-                show(existingChild.view)
-                return true
-            }
+            guard existingChild.isInactive else { return false }
             child = existingChild
         } else {
             guard let newChild = buildChild(byName: childName) else {
@@ -921,7 +918,7 @@ open class RAModule: RAModuleInterface {
     
     // MARK: - Assembly and Disassembly
     
-    /// Assembles this module by connecting its inner components to each other and to itself.
+    /// Assembles this module by connecting its inner components to each other and to this module.
     private func assemble() -> Void {
         router.viewController = view
         view._interactor = interactor
@@ -930,9 +927,10 @@ open class RAModule: RAModuleInterface {
         interactor._module = self
         router._module = self
         view._module = self
+        builder?._module = self
     }
     
-    /// Disassembles this module by disconnecting components from each other and from itself.
+    /// Disassembles this module by disconnecting components from each other and from this module.
     private func disassemble() -> Void {
         router.viewController = nil
         view._interactor = nil
@@ -941,6 +939,7 @@ open class RAModule: RAModuleInterface {
         interactor._module = nil
         router._module = nil
         view._module = nil
+        builder?._module = nil
     }
     
     
@@ -1001,7 +1000,7 @@ open class RAModule: RAModuleInterface {
     /// It will be displayed in logs, paths, links, etc.
     ///
     /// - Parameter interactor: The interactor that is responsible for all business logic of this module.
-    /// It's also a built-in delegate of the module lifecycle, data handling and providing and It can interact with other related interactors.
+    /// It's also a built-in delegate of the module lifecycle, data handling and providing, and It can interact with other related interactors.
     /// Implement this by subclassing the `RAInteractor` class.
     ///
     /// - Parameter router: The router that is responsible for the hierarchy of modules.
@@ -1044,6 +1043,9 @@ public protocol RAModuleInterface: RAComponent {
     
     /// A boolean value that indicates whether this module is loaded into the module tree.
     var isLoaded: Bool { get }
+    
+    /// A string containing the full path to this module.
+    var path: String { get }
     
 }
 
