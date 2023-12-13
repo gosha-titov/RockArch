@@ -51,12 +51,12 @@ open class RARouter: RAComponent, RAIntegratable, RARouterInterface {
     private var namesOfChildrenThatShouldBeTabs = [String]()
     
     /// A router of a parent module.
-    private var parent: RARouter? {
+    public final var parent: RARouter? {
         return _module?.parent?.router
     }
     
     /// The dictionary that stores routers of embedded child modules by their names.
-    private var embeddedChildren: [String: RARouter] {
+    public final var embeddedChildren: [String: RARouter] {
         guard let module = _module else { return [:] }
         var dict = [String: RARouter]()
         module.embeddedChildren.forEach { dict[$0.key] = $0.value.router }
