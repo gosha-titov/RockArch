@@ -16,6 +16,10 @@ import UIKit
 /// which are called when the module is attached to or detached from the module tree.
 /// You can override these to perform additional initialization on your properties and, accordingly, to clean them.
 ///
+/// If the module has embedded children, you can access them by using the `embeddedViewControllers` property and
+/// by redefining the `loadEmbeddedViewControllers()` method to make sure they really exist.
+/// It's used if you want to custom display these child controllers.
+///
 /// - Note: Each component can log messages by calling the `log(_:category:level:)` method.
 /// These messages are handled by the current black box with its loggers.
 ///
@@ -56,6 +60,14 @@ open class RARouter: RAComponent, RAIntegratable, RARouterInterface {
         guard let module = _module else { return [:] }
         var dict = [String: RARouter]()
         module.embeddedChildren.forEach { dict[$0.key] = $0.value.router }
+        return dict
+    }
+    
+    /// The dictionary that stores view controllers of embedded child modules by their names.
+    public final var embeddedViewControllers: [String: UIViewController] {
+        guard let module = _module else { return [:] }
+        var dict = [String: UIViewController]()
+        module.embeddedChildren.forEach { dict[$0.key] = $0.value.view }
         return dict
     }
     
@@ -628,6 +640,29 @@ open class RARouter: RAComponent, RAIntegratable, RARouterInterface {
     /// You don't need to call the `super` method.
     open func clean() -> Void {}
     
+    /// Loads embedded view controllers of this module.
+    ///
+    /// This method is used when the module has embedded children, and you need to animate them in your own way.
+    /// So you load the view controllers of these modules in the following way:
+    ///
+    ///     let messagesViewController: UIViewController!
+    ///     let settingsViewController: UIViewController!
+    ///
+    ///     func loadEmbeddedViewControllers() -> Bool {
+    ///         guard let messagesViewController = embeddedViewControllers["Messages"],
+    ///               let settingsViewController = embeddedViewControllers["Settings"]
+    ///         else { return false }
+    ///         self.messagesViewController = messagesViewController
+    ///         self.settingsViewController = settingsViewController
+    ///         return true
+    ///     }
+    ///
+    /// - Note: This method is called during the loading of the module, but before the `setup()` method of this router.
+    /// - Returns: `True` if all the necessary view controllers have been loaded; otherwise, `false`.
+    open func loadEmbeddedViewControllers() -> Bool {
+        return true
+    }
+    
     
     // MARK: - Init and Deinit
     
@@ -653,6 +688,7 @@ extension RARouter {
     }
     
 }
+
 
 
 /// A communication interface between an interactor and a router.

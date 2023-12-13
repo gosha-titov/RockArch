@@ -35,50 +35,50 @@ import UIKit // to launch from the window
 //
 // Below is a method chaining that includes main lifecycle methods of each component:
 //
-// | Module  | Interactor  | Router  | View  | Builder |
-// +–––––––––+–––––––––––––+–––––––––+–––––––+–––––––––+
-//                                     viewDidLoad()
-// + - - - - + - - - - - - + - - - - + - - - + - - - - +
-//  assemble()
-//  setup()
-// + - - - - + - - - - - - + - - - - + - - - + - - - - +
-//  canLoad(with:)
-//             moduleCanLoad(with:)
-//                           setupContainerController()
-//                                     loadEmbeddedViewControllers()
-// + - - - - + - - - - - - + - - - - + - - - + - - - - +
-//  load()
-//              setup()
-//                           setup()
-//                                     setup()
-//                                             setup()
-//             moduleDidLoad()
-// + - - - - + - - - - - - + - - - - + - - - + - - - - +
-//  canStart(with:)
-//             moduleCanStart(with:)
-// + - - - - + - - - - - - + - - - - + - - - + - - - - +
-//             moduleWillStart()
-//  start()
-//                                     viewWillAppear()
-//                                     viewDidAppear()
-//             moduleDidStart()
-// + - - - - + - - - - - - + - - - - + - - - + - - - - +
-//             moduleWillStop()
-//                                     viewWillDisappear()
-//                                     viewDidDisappear()
-//  stop()
-//  result()
-//             result()
-//             moduleDidStop()
-// + - - - - + - - - - - - + - - - - + - - - + - - - - +
-//             moduleWillUnload()
-//  unload()
-//  clean()
-//             clean()
-//                           clean()
-//                                     clean()
-//                                             clean()
-//  disassemble()
+//   | Module  | Interactor  | Router  | View  | Builder |
+//   +–––––––––+–––––––––––––+–––––––––+–––––––+–––––––––+
+//    assemble()
+//    setup()
+//   + - - - - + - - - - - - + - - - - + - - - + - - - - +
+//    canLoad(with:)
+//               moduleCanLoad(with:)
+//                             setupContainerController()
+//                             loadEmbeddedViewControllers()
+//                                       loadEmbeddedViewControllers()
+//   + - - - - + - - - - - - + - - - - + - - - + - - - - +
+//    load()
+//                setup()
+//                             setup()
+//                                       setup()
+//                                               setup()
+//               moduleDidLoad()
+//   + - - - - + - - - - - - + - - - - + - - - + - - - - +
+//    canStart(with:)
+//               moduleCanStart(with:)
+//   + - - - - + - - - - - - + - - - - + - - - + - - - - +
+//               moduleWillStart()
+//    start()
+//                                       viewDidLoad()
+//                                       viewWillAppear()
+//                                       viewDidAppear()
+//               moduleDidStart()
+//   + - - - - + - - - - - - + - - - - + - - - + - - - - +
+//               moduleWillStop()
+//                                       viewWillDisappear()
+//                                       viewDidDisappear()
+//    stop()
+//    result()
+//               result()
+//               moduleDidStop()
+//   + - - - - + - - - - - - + - - - - + - - - + - - - - +
+//               moduleWillUnload()
+//    unload()
+//    clean()
+//               clean()
+//                             clean()
+//                                       clean()
+//                                               clean()
+//    disassemble()
 //
 
 /// A module that is responsible for dividing the application into independent parts.
@@ -796,6 +796,11 @@ open class RAModule: RAModuleInterface {
         embed(builtModules: builtChildren)
         guard router.setupContainerController() else {
             log("Couldn't be loaded because the router didn't setup a contrainer controller",
+                category: .moduleLifecycle, level: .error)
+            return false
+        }
+        guard router.loadEmbeddedViewControllers() else {
+            log("Couldn't be loaded because the router didn't load embedded child view controllers",
                 category: .moduleLifecycle, level: .error)
             return false
         }
