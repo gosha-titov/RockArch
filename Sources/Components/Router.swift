@@ -23,7 +23,7 @@ import UIKit
 /// - Note: Each component can log messages by calling the `log(_:category:level:)` method.
 /// These messages are handled by the current black box with its loggers.
 ///
-open class RARouter: RAComponent, RAIntegratable, RARouterInterface {
+open class RARouter: NSObject, RAComponent, RAIntegratable, RARouterInterface {
     
     // MARK: - Properties
     
@@ -70,6 +70,8 @@ open class RARouter: RAComponent, RAIntegratable, RARouterInterface {
         module.embeddedChildren.forEach { dict[$0.key] = $0.value.view }
         return dict
     }
+    
+    internal var navigationStack = [RARouter]()
     
     
     // MARK: View Controllers
@@ -148,7 +150,7 @@ open class RARouter: RAComponent, RAIntegratable, RARouterInterface {
             return
         }
         guard let module = _module else {
-            log("Couldn't show the `\(childName)` child module because this router didn't integrated into a module",
+            log("Couldn't show the `\(childName)` child module because this router wasn't integrated into a module",
                 category: .moduleRouting, level: .error)
             return
         }
@@ -184,12 +186,12 @@ open class RARouter: RAComponent, RAIntegratable, RARouterInterface {
             return
         }
         guard let module = _module else {
-            log("Couldn't hide the `\(childName)` child module because this router didn't integrated into a module",
+            log("Couldn't hide the `\(childName)` child module because this router wasn't integrated into a module",
                 category: .moduleRouting, level: .error)
             return
         }
         guard let child = module.router(of: .child(childName)) else {
-            log("Couldn't hide the `\(childName)` uknown child module",
+            log("Couldn't hide the `\(childName)` unknown child module",
                 category: .moduleRouting, level: .error)
             return
         }
@@ -226,7 +228,7 @@ open class RARouter: RAComponent, RAIntegratable, RARouterInterface {
             return
         }
         guard let module = _module else {
-            log("Couldn't present the `\(childName)` child module because this router didn't integrated into a module",
+            log("Couldn't present the `\(childName)` child module because this router wasn't integrated into a module",
                 category: .moduleRouting, level: .error)
             return
         }
@@ -267,7 +269,7 @@ open class RARouter: RAComponent, RAIntegratable, RARouterInterface {
             return
         }
         guard let module = _module else {
-            log("Couldn't dismiss the `\(childName)` child module because this router didn't integrated into a module",
+            log("Couldn't dismiss the `\(childName)` child module because this router wasn't integrated into a module",
                 category: .moduleRouting, level: .error)
             return
         }
@@ -313,12 +315,12 @@ open class RARouter: RAComponent, RAIntegratable, RARouterInterface {
             return
         }
         guard let module = _module else {
-            log("Couldn't push the `\(childName)` child module because this router didn't integrated into a module",
+            log("Couldn't push the `\(childName)` child module because this router wasn't integrated into a module",
                 category: .moduleRouting, level: .error)
             return
         }
         guard navigationController.isNil else {
-            log("Couldn't push the `\(childName)` child module because this routred already set a root view controller",
+            log("Couldn't push the `\(childName)` child module because this router already set a root view controller",
                 category: .moduleRouting, level: .error)
             return
         }
@@ -333,7 +335,7 @@ open class RARouter: RAComponent, RAIntegratable, RARouterInterface {
             return
         }
         guard nameOfpushedChildModule.isNil else {
-            log("Couldn't push the `\(childName)` child module because this module already pushed another child module",
+            log("Couldn't push the `\(childName)` child module because there was another pushed child module",
                 category: .moduleRouting, level: .error)
             return
         }
@@ -343,6 +345,7 @@ open class RARouter: RAComponent, RAIntegratable, RARouterInterface {
             return
         }
         let pushChildViewController: RADefaultAnimation = { childViewController in
+            sharedNavigationRouter.navigationStack.append(child)
             sharedNavigationController.push(childViewController, animated: animated, completion: completion)
         }
         guard module.invokeChild(byName: childName, animation: pushChildViewController) else {
@@ -385,7 +388,7 @@ open class RARouter: RAComponent, RAIntegratable, RARouterInterface {
             return
         }
         guard let module = _module else {
-            log("Couldn't pop the `\(childName)` child module because this router didn't integrated into a module",
+            log("Couldn't pop the `\(childName)` child module because this router wasn't integrated into a module",
                 category: .moduleRouting, level: .error)
             return
         }
@@ -421,6 +424,7 @@ open class RARouter: RAComponent, RAIntegratable, RARouterInterface {
             return
         }
         let popChildViewController: RADefaultAnimation = { _ in
+            sharedNavigationRouter.navigationStack.removeChildren(upToAndIncluding: child)
             sharedNavigationController.popToViewController(viewController, animated: animated, completion: completion)
         }
         guard module.revokeChild(byName: childName, animation: popChildViewController) else {
@@ -472,7 +476,7 @@ open class RARouter: RAComponent, RAIntegratable, RARouterInterface {
             return
         }
         guard let module = _module else {
-            log("Couldn't pop to the root child module because this router didn't integrated into a module",
+            log("Couldn't pop to the root child module because this router wasn't integrated into a module",
                 category: .moduleRouting, level: .error)
             return
         }
@@ -510,7 +514,7 @@ open class RARouter: RAComponent, RAIntegratable, RARouterInterface {
             return
         }
         guard _module.hasValue else {
-            log("Couldn't push the \(childName) child module because this router didn't integrated into a module",
+            log("Couldn't push the \(childName) child module because this router wasn't integrated into a module",
                 category: .moduleRouting, level: .error)
             return
         }
@@ -545,7 +549,7 @@ open class RARouter: RAComponent, RAIntegratable, RARouterInterface {
             return false
         }
         guard let module = _module else {
-            log("Couldn't setup a tab bar controller because this router didn't integrated into a module",
+            log("Couldn't setup a tab bar controller because this router wasn't integrated into a module",
                 category: .moduleRouting, level: .error)
             return false
         }
@@ -586,7 +590,7 @@ open class RARouter: RAComponent, RAIntegratable, RARouterInterface {
             return false
         }
         guard _module.hasValue else {
-            log("Couldn't setup a navigation controller because this router didn't integrated into a module",
+            log("Couldn't setup a navigation controller because this router wasn't integrated into a module",
                 category: .moduleRouting, level: .error)
             return false
         }
@@ -602,9 +606,11 @@ open class RARouter: RAComponent, RAIntegratable, RARouterInterface {
             return false
         }
         navigationController.setViewControllers([childViewController], animated: false)
+        navigationController.delegate = self
         child.sharedNavigationRouter = self
         child.currentTransition = .push
         nameOfpushedChildModule = child.name
+        navigationStack.append(child)
         return true
     }
     
@@ -667,12 +673,59 @@ open class RARouter: RAComponent, RAIntegratable, RARouterInterface {
     // MARK: - Init and Deinit
     
     /// Creates a router instance.
-    public init() {
+    public override init() {
+        super.init()
         RALeakDetector.register(self)
     }
     
     deinit {
 //        RALeakDetector.release(self)
+    }
+    
+}
+
+
+
+extension RARouter: UINavigationControllerDelegate {
+    
+    public func navigationController(_ navigationController: UINavigationController, didShow viewController: UIViewController, animated: Bool) -> Void {
+        guard isActive else {
+            log("Couldn't detect a change in the navigation stack because this router wasn't active",
+                category: .moduleRouting, level: .error)
+            return
+        }
+        guard let module = _module else {
+            log("Couldn't detect a change in the navigation stack because this router wasn't integrated into a module",
+                category: .moduleRouting, level: .error)
+            return
+        }
+        guard self.navigationController === navigationController else {
+            log("Couldn't detect a change in the navigation stack because this router wasn't the owner of the navigation controller",
+                category: .moduleRouting, level: .error)
+            return
+        }
+        var child: RARouter?
+        for pushedChild in navigationStack {
+            guard let childViewController = pushedChild.viewController else { continue }
+            if childViewController === viewController {
+                child = pushedChild
+                break
+            }
+        }
+        guard let child else { 
+            log("Couldn't detect a change in the navigation stack because there was found untracked view controller",
+                category: .moduleRouting, level: .error)
+            return
+        }
+        for pushedChild in navigationStack.reversed() {
+            guard pushedChild !== child else { break }
+            navigationStack.removeLast()
+            guard module.revokeChild(byName: pushedChild.name, animation: { _ in } ) else {
+                log("Couldn't pop the `\(pushedChild.name)` child module because it wasn't revoked",
+                    category: .moduleRouting, level: .error)
+                continue
+            }
+        }
     }
     
 }
