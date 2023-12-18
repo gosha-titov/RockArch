@@ -694,11 +694,6 @@ extension RARouter: UINavigationControllerDelegate {
                 category: .moduleRouting, level: .error)
             return
         }
-        guard let module = _module else {
-            log("Couldn't detect a change in the navigation stack because this router wasn't integrated into a module",
-                category: .moduleRouting, level: .error)
-            return
-        }
         guard self.navigationController === navigationController else {
             log("Couldn't detect a change in the navigation stack because this router wasn't the owner of the navigation controller",
                 category: .moduleRouting, level: .error)
@@ -720,7 +715,9 @@ extension RARouter: UINavigationControllerDelegate {
         for pushedChild in navigationStack.reversed() {
             guard pushedChild !== child else { break }
             navigationStack.removeLast()
-            guard module.revokeChild(byName: pushedChild.name, animation: { _ in } ) else {
+            guard let parentModuleOfPushedChild = pushedChild._module?.parent,
+                  parentModuleOfPushedChild.revokeChild(byName: pushedChild.name, animation: { _ in } ) 
+            else {
                 log("Couldn't pop the `\(pushedChild.name)` child module because it wasn't revoked",
                     category: .moduleRouting, level: .error)
                 continue
