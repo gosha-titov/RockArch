@@ -722,6 +722,7 @@ extension RARouter: UINavigationControllerDelegate {
                     category: .moduleRouting, level: .error)
                 continue
             }
+            parentModuleOfPushedChild.router.nameOfpushedChildModule = nil
         }
     }
     
