@@ -51,3 +51,16 @@ internal extension Array where Element: CustomStringConvertible {
     }
     
 }
+
+
+internal extension Array where Element: RARouter {
+    
+    mutating func removeChildren(upToAndIncluding child: RARouter) -> Void {
+        guard contains(where: { $0 === child } ) else { return }
+        for currentChild in self {
+            removeLast()
+            guard currentChild !== child else { break }
+        }
+    }
+    
+}
