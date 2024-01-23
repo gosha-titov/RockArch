@@ -94,27 +94,16 @@ extension RAView {
     }
     
     /// An internal module of this view.
-    internal var _module: RAModule? {
-        get {
-            let storage = RAWeakModuleStorage.shared
-            return storage[debugDescription]
-        }
-        set {
-            let storage = RAWeakModuleStorage.shared
-            storage[debugDescription] = newValue
-        }
+    var _module: RAModule? {
+        get { return objc_getAssociatedObject(self, &AssociatedKeys.module) as? RAModule }
+        set { objc_setAssociatedObject(self, &AssociatedKeys.module, newValue, .OBJC_ASSOCIATION_RETAIN) }
     }
+    
     
     /// An internal interactor of this module.
     internal var _interactor: RAAnyInteractor? {
-        get {
-            let storage = RAWeakInteractorStorage.shared
-            return storage[debugDescription]
-        }
-        set {
-            let storage = RAWeakInteractorStorage.shared
-            storage[debugDescription] = newValue
-        }
+        get { return objc_getAssociatedObject(self, &AssociatedKeys.interactor) as? RAAnyInteractor }
+        set { objc_setAssociatedObject(self, &AssociatedKeys.interactor, newValue, .OBJC_ASSOCIATION_RETAIN) }
     }
     
     /// Setups this view before it starts working.
@@ -133,4 +122,11 @@ extension RAView {
     
     public func loadEmbeddedViewControllers() -> Bool { true }
     
+}
+
+
+
+private struct AssociatedKeys {
+    static var module = "com.memoca.module".hashValue
+    static var interactor = "com.memoca.interactor".hashValue
 }
