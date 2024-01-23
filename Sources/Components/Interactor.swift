@@ -31,10 +31,9 @@ open class RAInteractor<ViewInterface>: RAAnyInteractor {
     
 }
 
+
 /// An interactor that has implementations of the main properties and methods.
 open class RAAnyInteractor: RAComponent, RAIntegratable, RAModuleLifecycleDelegate, RAModuleDataProvider, RAModuleDataHandler {
-    
-    // MARK: - Properties
     
     /// A module into which this interactor is integrated.
     public final var module: RAModuleInterface? { _module }
@@ -42,7 +41,7 @@ open class RAAnyInteractor: RAComponent, RAIntegratable, RAModuleLifecycleDelega
     /// An internal module of this interactor.
     internal weak var _module: RAModule?
     
-    /// A textual representation of the type of this object.
+    /// The textual representation of the type of this object.
     ///
     /// This property has the "Interactor" value.
     public let type: String = "Interactor"
@@ -92,13 +91,13 @@ open class RAAnyInteractor: RAComponent, RAIntegratable, RAModuleLifecycleDelega
     ///         return parent(as: SomeInterface.self)
     ///     }
     ///
-    /// For example, this interactor belongs to the `Feed` module and you need to interact with the `Main` parent interactor:
+    /// For example, this interactor belongs to the *Feed* module and you need to interact with the *Main* parent interactor:
     ///
-    ///     var parent: FeedToMainInterface? {
-    ///         return parent(as: FeedToMainInterface.self)
+    ///     var parent: FeedToMainInteractorInterface? {
+    ///         return parent(as: FeedToMainInteractorInterface.self)
     ///     }
     ///
-    /// - Note: You don't should storage this instance directly, because it can lead to implicit errors.
+    /// - Note: You should not storage this instance directly, because it can lead to implicit errors.
     /// - Returns: An instance of a parent interactor casted to the given interface; otherwise, `nil`.
     public final func parent<Interface>(as: Interface.Type) -> Interface? {
         guard let module = _module else {
@@ -116,16 +115,16 @@ open class RAAnyInteractor: RAComponent, RAIntegratable, RAModuleLifecycleDelega
     /// Then you define a computed property as in the example below:
     ///
     ///     var someChild: SomeInterface? {
-    ///         return child("Some", as: SomeInterface.self)
+    ///         return child(SomeModule.name, as: SomeInterface.self)
     ///     }
     ///
-    /// For example, this interactor belongs to the `Main` module and you need to interact with the `Feed` child interactor:
+    /// For example, this interactor belongs to the *Main* module and you need to interact with the *Feed* child interactor:
     ///
-    ///     var profileModule: MainToFeedInterface? {
-    ///         return child("Feed", as: MainToFeedInterface.self)
+    ///     var feedChild: MainToFeedInteractorInterface? {
+    ///         return child(FeedModule.name, as: MainToFeedInteractorInterface.self)
     ///     }
     ///
-    /// - Note: You don't should storage this instance directly, because it can lead to implicit errors.
+    /// - Note: You should not storage this instance directly, because it can lead to implicit errors.
     /// - Returns: An instance of a specific child interactor casted to the given interface; otherwise, `nil`.
     public final func child<Interface>(_ childName: String, as: Interface.Type) -> Interface? {
         guard let module = _module else {
@@ -142,19 +141,19 @@ open class RAAnyInteractor: RAComponent, RAIntegratable, RAModuleLifecycleDelega
     /// Called when a specific interactor from the module tree passes some named value.
     ///
     /// Override this method to process the passed data.
-    /// You don't need to call the `super` method.
+    /// You don't need to call the `super` method, because the default implementation does nothing.
     open func global(_ moduleName: String, didPass value: Any, with label: String) -> Void {}
     
     /// Called when a parent interactor passes some named data.
     ///
     /// Override this method to handle the passed data.
-    /// You don't need to call the `super` method.
+    /// You don't need to call the `super` method, because the default implementation does nothing.
     open func parent(_ parentName: String, didPass value: Any, with label: String) -> Void {}
     
     /// Called when a specific child interactor passes some named data.
     ///
     /// Override this method to handle this passed data.
-    /// You don't need to call the `super` method.
+    /// You don't need to call the `super` method, because the default implementation does nothing.
     open func child(_ childName: String, didPass value: Any, with label: String) -> Void {}
     
     /// Called when a specific child interactor completes its work and passes some result.
@@ -164,13 +163,16 @@ open class RAAnyInteractor: RAComponent, RAIntegratable, RAModuleLifecycleDelega
     ///
     ///     override func child(_ childName: String, didCompleteWith result: RAResult?) -> Void {
     ///         switch childName:
-    ///         case "Auth": router.showChildModule(byName: "Main", animated: true)
-    ///         case "Main": router.showChildModule(byName: "Auth", animated: true)
-    ///         default: return
+    ///         case AuthModule.name: 
+    ///             router.showChildModule(byName: MainModule.name, animated: true)
+    ///         case MainModule.name:
+    ///             router.showChildModule(byName: AuthModule.name, animated: true)
+    ///         default:
+    ///             return
     ///     }
     ///
     /// Override this method to handle this passed data and/or to start another child module.
-    /// You don't need to call the `super` method.
+    /// You don't need to call the `super` method, because the default implementation does nothing.
     open func child(_ childName: String, didCompleteWith result: RAResult?) -> Void {}
     
     
@@ -183,13 +185,13 @@ open class RAAnyInteractor: RAComponent, RAIntegratable, RAModuleLifecycleDelega
     ///
     ///     override func dependency(forChildModuleWithName childName: String) -> RADependency? {
     ///         switch childName {
-    ///         case "Feed": return service1
-    ///         case "Chat": return service2
+    ///         case MessagesModule.name: return service
+    ///         case SettingsModule.name: return storage
     ///         default: return nil
     ///         }
     ///     }
     ///
-    /// You don't need to call the `super` method.
+    /// You don't need to call the `super` method, because the default implementation does nothing.
     /// - Returns: A necessary dependency for a child module to be loaded.
     open func dependency(forChildModuleWithName childName: String) -> RADependency? { nil }
     
@@ -200,53 +202,24 @@ open class RAAnyInteractor: RAComponent, RAIntegratable, RAModuleLifecycleDelega
     ///
     ///     override func context(forChildModuleWithName childName: String) -> RAContext? {
     ///         switch childName {
-    ///         case "Community": return communityID
-    ///         case "FriendProfile": return friendID
+    ///         case FriendProfile.name: return friendID
+    ///         case FullScreenImageModule.name: return image
     ///         default: return nil
     ///         }
     ///     }
     ///
-    /// You don't need to call the `super` method.
+    /// You don't need to call the `super` method, because the default implementation does nothing.
     /// - Returns: A necessary context for a child module to be started.
     open func context(forChildModuleWithName childName: String) -> RAContext? { nil }
     
     /// Called when the module of this interactor completed its work.
     ///
     /// Override this method to pass the work result of this module to a parent interactor.
-    /// You don't need to call the `super` method.
+    /// You don't need to call the `super` method, because the default implementation does nothing.
     open func result() -> RAResult? { nil }
     
     
     // MARK: - Module Lifecycle Delegate
-    
-    /// Called when the module is about to be loaded into memory.
-    ///
-    /// This method is called when a parent module provides a dependency with which this module will be loaded.
-    ///
-    /// It's a built-in support the DI pattern in order to make implicit dependencies explicit.
-    /// It also simplifies the testing of the module, because you don't need a real service, but only a stub one.
-    /// The parent module of this provides these dependencies.
-    ///
-    /// You override this method to perform additional initialization on your private dependencies, such as services,
-    /// then return a boolean value as an indicator that the module can be loaded.
-    /// For example:
-    ///
-    ///     let service: ServiceInterface!
-    ///
-    ///     override func moduleCanLoad(with dependency: RADependency?) -> Bool {
-    ///         guard let service = dependency as? ServiceInterface else {
-    ///             return false
-    ///         }
-    ///         self.service = service
-    ///         return true
-    ///     }
-    ///
-    /// You don't need to call the `super` method.
-    ///
-    /// - Note: Returning `false` you indicate that the module cannot be loaded because you didn't get the necessary dependency.
-    /// That is, this module will not be loaded into the parent memory. The parent module will continue its work. You will see the error in log messages.
-    /// - Returns: `True` if the module can be loaded into the parent memory; otherwise, `false`.
-    open func moduleCanLoad(with dependency: RADependency?) -> Bool { true }
     
     /// Called after the module is loaded into the parent memory.
     ///
@@ -255,7 +228,7 @@ open class RAAnyInteractor: RAComponent, RAIntegratable, RAModuleLifecycleDelega
     /// That is, the module and its components are ready to work.
     ///
     /// You usually override this method, for example, to start fetching user data.
-    /// You don't need to call the `super` method.
+    /// You don't need to call the `super` method, because the default implementation does nothing.
     open func moduleDidLoad() -> Void {}
     
     /// Called when the module is about to be started.
@@ -268,37 +241,37 @@ open class RAAnyInteractor: RAComponent, RAIntegratable, RAModuleLifecycleDelega
     ///
     /// - Note: Returning `false` you indicate that the module cannot be started because you didn't get the necessary context.
     /// That is, this module will not be started, therefore, it will not be shown. The parent will continue its work.
-    /// You will see the error in log messages.
+    /// You will see the error in log messages, because the default implementation does nothing.
     /// - Returns: `True` if the module can be started; otherwise, `false`.
     open func moduleCanStart(with context: RAContext?) -> Bool { true }
     
     /// Called when the module is about to be started.
     ///
     /// This method is called before the view of this module appears.
-    /// You don't need to call the `super` method.
+    /// You don't need to call the `super` method, because the default implementation does nothing.
     open func moduleWillStart() -> Void {}
     
     /// Called when the module has become active.
     ///
     /// This method is called afted the view of this module appeared.
-    /// You don't need to call the `super` method.
+    /// You don't need to call the `super` method, because the default implementation does nothing.
     open func moduleDidStart() -> Void {}
     
     /// Called when the module is about to be stopped.
     ///
     /// This method is called before the view of this module disappears.
-    /// You don't need to call the `super` method.
+    /// You don't need to call the `super` method, because the default implementation does nothing.
     open func moduleWillStop() -> Void {}
     
     /// Called when the module has become inactive.
     ///
     /// This method is called afted the view of this module disappeared.
-    /// You don't need to call the `super` method.
+    /// You don't need to call the `super` method, because the default implementation does nothing.
     open func moduleDidStop() -> Void {}
     
     /// Called when the module is about to be unloaded from parent memory.
     ///
-    /// You don't need to call the `super` method.
+    /// You don't need to call the `super` method, because the default implementation does nothing.
     open func moduleWillUnload() -> Void {}
     
     
@@ -308,14 +281,14 @@ open class RAAnyInteractor: RAComponent, RAIntegratable, RAModuleLifecycleDelega
     ///
     /// This method is called when the module into which this interactor integrated is assembled and loaded into the module tree.
     /// You usually override this method to perform additional initialization on your private properties.
-    /// You don't need to call the `super` method.
+    /// You don't need to call the `super` method, because the default implementation does nothing.
     open func setup() -> Void {}
     
     /// Cleans this interactor after it stops working.
     ///
     /// This method is called when the module into which this interactor integrated is about to be unloaded from the module tree and disassembled.
     /// You usually override this method to clean your properties.
-    /// You don't need to call the `super` method.
+    /// You don't need to call the `super` method, because the default implementation does nothing.
     open func clean() -> Void {}
     
     

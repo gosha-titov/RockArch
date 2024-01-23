@@ -5,29 +5,29 @@ import UIKit // to launch from the window
 //
 // The module uses a data structure like this:
 //
-//  +––––––––––––––––+           +–––––––––––––––––+
-//  |[class RAModule]|----------→|[class RABuilder]|
-//  |                |← - - - - -|                 |
-//  | interactor     |           | _module         |
-//  | router         |           +–––––––––––––––––+
-//  | view           |
-//  | builder        |
-//  +––––––––––––––––+
-//   ↑ |   ↑ |   ↑ |
-//     |     |   | ⌎--------------------------------------------------⌍
-//   | |   | |   ⌎ - - - - - - - - - - - - - - - - - - - - - - - - -⌍ |
-//     |     |                                                        |
-//   | |   | ⌎-----------------------⌍                              | |
-//     |   ⌎- - - - - - - - - - - -⌍ |                                |
-//   | ↓                           | ↓                              | ↓
-//  +––––––––––––––––+           +––––––––––––––––––––+           +––––––––––––––+
-//  |[class RARouter]|           |[class RAInteractor]|- - - - - →|[class RAView]|
-//  |                |← - - - - -|                    |← - - - - -|              |
-//  | _module        |           | _module            |           | _module      |
-//  | viewController |           | _router            |           | _interactor  |
-//  +––––––––––––––––+           | _view              |           +––––––––––––––+
-//         |                     +––––––––––––––––––––+                  ↑
-//         ⌎ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - ⌏
+//  ┌────────────────┐          ┌─────────────────┐
+//  │[class RAModule]├─────────▶│[class RABuilder]│
+//  │                │◀─ ─ ─ ─ ─┤                 │
+//  │ interactor     │          │ _module         │
+//  │ router         │          └─────────────────┘
+//  │ view           │
+//  │ builder        │
+//  └──┬─────┬─────┬─┘
+//   ▲ │   ▲ │   ▲ │
+//   ╎ │   ╎ │   ╎ └───────────────────────────────────────────────┐
+//   ╎ │   ╎ │   └ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┐ │
+//   ╎ │   ╎ │                                                   ╎ │
+//   ╎ │   ╎ └─────────────────────┐                             ╎ │
+//   ╎ │   └ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┐ │                             ╎ │
+//   ╎ ▼                         ╎ ▼                             ╎ ▼
+//  ┌┴───────────────┐          ┌┴───────────────────┐          ┌┴─────────────┐
+//  │[class RARouter]│          │[class RAInteractor]├─ ─ ─ ─ ─▶│[class RAView]│
+//  │                │◀─ ─ ─ ─ ─┤                    │◀─ ─ ─ ─ ─┤              │
+//  │ _module        │          │ _module            │          │ _module      │
+//  │ viewController │          │ _router            │          │ _interactor  │
+//  └──────┬─────────┘          │ _view              │          └──────────────┘
+//         ╎                    └────────────────────┘                 ▲
+//         └ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┘
 //
 //
 // Lifecycle methods
@@ -35,51 +35,47 @@ import UIKit // to launch from the window
 //
 // Below is a method chaining that includes main lifecycle methods of each component:
 //
-//   | Module  | Interactor  | Router  | View  | Builder |
-//   +–––––––––+–––––––––––––+–––––––––+–––––––+–––––––––+
-//    assemble()
-//    setup()
-//   + - - - - + - - - - - - + - - - - + - - - + - - - - +
-//    canLoad(with:)
-//               moduleCanLoad(with:)
+//   │ Module  │ Interactor  │ Router  │ View  │ Builder │
+//   ├─────────┼─────────────┼─────────┼───────┼─────────┤
+//     assemble()
+//     setup()
+//   ├ ─ ─ ─ ─ ┼ ─ ─ ─ ─ ─ ─ ┼ ─ ─ ─ ─ ┼ ─ ─ ─ ┼ ─ ─ ─ ─ ┤
+//     canLoad()
 //                             setupContainerController()
 //                             loadEmbeddedViewControllers()
 //                                       loadEmbeddedViewControllers()
-//   + - - - - + - - - - - - + - - - - + - - - + - - - - +
-//    load()
-//                setup()
+//   ├ ─ ─ ─ ─ ┼ ─ ─ ─ ─ ─ ─ ┼ ─ ─ ─ ─ ┼ ─ ─ ─ ┼ ─ ─ ─ ─ ┤
+//     load()
+//               setup()
 //                             setup()
 //                                       setup()
 //                                               setup()
 //               moduleDidLoad()
-//   + - - - - + - - - - - - + - - - - + - - - + - - - - +
-//    canStart(with:)
-//               moduleCanStart(with:)
-//   + - - - - + - - - - - - + - - - - + - - - + - - - - +
+//   ├ ─ ─ ─ ─ ┼ ─ ─ ─ ─ ─ ─ ┼ ─ ─ ─ ─ ┼ ─ ─ ─ ┼ ─ ─ ─ ─ ┤
 //               moduleWillStart()
-//    start()
+//     start()
 //                                       viewDidLoad()
 //                                       viewWillAppear()
 //                                       viewDidAppear()
 //               moduleDidStart()
-//   + - - - - + - - - - - - + - - - - + - - - + - - - - +
+//   ├ ─ ─ ─ ─ ┼ ─ ─ ─ ─ ─ ─ ┼ ─ ─ ─ ─ ┼ ─ ─ ─ ┼ ─ ─ ─ ─ ┤
 //               moduleWillStop()
 //                                       viewWillDisappear()
 //                                       viewDidDisappear()
-//    stop()
-//    result()
+//     stop()
+//     result()
 //               result()
 //               moduleDidStop()
-//   + - - - - + - - - - - - + - - - - + - - - + - - - - +
+//   ├ ─ ─ ─ ─ ┼ ─ ─ ─ ─ ─ ─ ┼ ─ ─ ─ ─ ┼ ─ ─ ─ ┼ ─ ─ ─ ─ ┤
 //               moduleWillUnload()
-//    unload()
-//    clean()
+//     unload()
+//     clean()
 //               clean()
 //                             clean()
 //                                       clean()
 //                                               clean()
-//    disassemble()
-//
+//     disassemble()
+//   └─────────┴─────────────┴─────────┴───────┴─────────┘
 
 /// A module that is responsible for dividing the application into independent parts.
 ///
@@ -111,17 +107,19 @@ import UIKit // to launch from the window
 ///
 ///     final class MainModule: RAModule {
 ///
+///         static let name = "Main"
+///
 ///         override func setup() -> Void {
-///             embedChildModule(byName: "Feed")
-///             embedChildModule(byName: "Messages")
-///             embedChildModule(byName: "Settings")
+///             embedChildModule(byName: FeedModule.name)
+///             embedChildModule(byName: MessagesModule.name)
+///             embedChildModule(byName: SettingsModule.name)
 ///             isDependentOnEmbeddedModules = true
 ///             isUnloadedIfCompleted = false
 ///         }
 ///
 ///         init() {
 ///             super.init(
-///                 name: "Main",
+///                 name:       MainModule.name,
 ///                 interactor: MainInteractor(),
 ///                 router:     MainRouter(),
 ///                 view:       MainView(),
@@ -270,9 +268,11 @@ open class RAModule: RAModuleInterface {
     ///
     ///     final class MainModule: RAModule {
     ///
+    ///         static let name = "Main"
+    ///
     ///         override init() {
     ///             super.init(
-    ///                 name: "Main",
+    ///                 name:       MainModule.name,
     ///                 interactor: MainInteractor(),
     ///                 router:     MainRouter(),
     ///                 view:       MainView(),
@@ -298,7 +298,7 @@ open class RAModule: RAModuleInterface {
     /// - Returns: `True` if this module has become the root; otherwise, `false`.
     @discardableResult
     public final func launch(from window: UIWindow) -> Bool {
-        guard canLoad(with: nil) else {
+        guard canLoad() else {
             log("Couldn't be launched from the window because this module couldn't be loaded",
                 category: .moduleLifecycle, level: .error)
             return false
@@ -447,18 +447,6 @@ open class RAModule: RAModuleInterface {
         return result
     }
     
-    /// Provides a dependency to the given child module.
-    /// - Returns: `True` if this child module can be loaded; otherwise, `false`.
-    private func provideDependency(to child: RAModule) -> Bool {
-        guard child.isLoaded == false else {
-            log("Couldn't provide a dependency to the `\(child.name)` child module because it was already loaded",
-                category: .moduleManagement, level: .error)
-            return false
-        }
-        let dependency = dataProvider.dependency(forChildModuleWithName: child.name)
-        return child.canLoad(with: dependency)
-    }
-    
     /// Provides a context to the given child module.
     /// - Returns: `True` if this child module can be started; otherwise, `false`.
     private func provideContext(to child: RAModule) -> Bool {
@@ -551,7 +539,7 @@ open class RAModule: RAModuleInterface {
                 category: .moduleManagement, level: .error)
             return false
         }
-        let childExists = children.contains(value: child)
+        let childExists = children.hasKey(child.name)
         guard childExists else {
             log("Couldn't start the `\(child.name)` unknown child module",
                 category: .moduleManagement, level: .error)
@@ -591,7 +579,7 @@ open class RAModule: RAModuleInterface {
                 category: .moduleManagement, level: .error)
             return false
         }
-        let childExists = children.contains(value: child)
+        let childExists = children.hasKey(child.name)
         guard childExists else {
             log("Couldn't stop the `\(child.name)` unknown child module",
                 category: .moduleManagement, level: .error)
@@ -658,10 +646,9 @@ open class RAModule: RAModuleInterface {
     /// - Parameter child: The module that will become a child of this module during the loading process.
     /// - Returns: `True` if the given module was loaded successfully; otherwise, `false`.
     private func load(_ child: RAModule) -> Bool {
-        let childDoesNotExist = !children.contains(value: child)
+        let childDoesNotExist = !children.hasKey(child.name)
         guard childDoesNotExist else { return true }
-        let childCanLoad = provideDependency(to: child)
-        guard childCanLoad else {
+        guard child.canLoad() else {
             log("Couldn't load the `\(child.name)` child module",
                 category: .moduleManagement, level: .error)
             return false
@@ -705,14 +692,15 @@ open class RAModule: RAModuleInterface {
         child.parent = nil
     }
     
-    /// Builds a specific child module by its associated name if possible.
+    /// Returns a child module created by the specified name.
     private func buildChild(byName childName: String) -> RAModule? {
         guard let builder else {
             log("Couldn't build the `\(childName)` child module because this module didn't have a builder",
                 category: .moduleManagement, level: .error)
             return nil
         }
-        return builder.buildChildModule(byName: childName)
+        let dependency = dataProvider.dependency(forChildModuleWithName: childName)
+        return builder.buildChildModule(byName: childName, with: dependency)
     }
     
     
@@ -723,9 +711,9 @@ open class RAModule: RAModuleInterface {
     /// It's used for a composite module. For example, for a tab bar module:
     ///
     ///     override func setup() -> Void {
-    ///         embedChildModule(byName: "Feed")
-    ///         embedChildModule(byName: "Messages")
-    ///         embedChildModule(byName: "Settings")
+    ///         embedChildModule(byName: FeedModule.name)
+    ///         embedChildModule(byName: MessagesModule.name)
+    ///         embedChildModule(byName: SettingsModule.name)
     ///     }
     ///
     /// - Note: The embedded child module becomes built and loaded only during the loading of this module.
@@ -758,12 +746,12 @@ open class RAModule: RAModuleInterface {
     
     // MARK: Loading
     
-    /// Asks this module if it can be loaded with the given dependency.
+    /// Asks this module if it can be loaded.
     ///
     /// - Note: If the module behavior depends on its embedded child modules and one of these modules cannot be built or loaded,
     /// then this module cannot be loaded too.
     /// - Returns: `True` if module can be loaded; otherwise, `false`.
-    internal final func canLoad(with dependency: RADependency?) -> Bool {
+    internal final func canLoad() -> Bool {
         var builtChildren = [String: RAModule]()
         for childName in namesOfChildrenThatShouldBeEmbedded {
             if let builtChild = buildChild(byName: childName) {
@@ -777,8 +765,7 @@ open class RAModule: RAModuleInterface {
             }
         }
         for child in builtChildren.values {
-            let childCanLoad = provideDependency(to: child)
-            if childCanLoad == false {
+            if child.canLoad() == false {
                 guard isDependentOnEmbeddedModules == false else {
                     log("Couldn't be loaded because one of the embedded modules wasn't loaded",
                         category: .moduleLifecycle, level: .error)
@@ -786,12 +773,6 @@ open class RAModule: RAModuleInterface {
                 }
                 builtChildren.removeValue(forKey: child.name)
             }
-        }
-        let thisModuleCanLoad = lifecycleDelegate.moduleCanLoad(with: dependency)
-        guard thisModuleCanLoad else {
-            log("Couldn't be loaded because this module didn't get necessary dependency",
-                category: .moduleLifecycle, level: .error)
-            return false
         }
         embed(builtModules: builtChildren)
         guard router.setupContainerController() else {
@@ -958,22 +939,22 @@ open class RAModule: RAModuleInterface {
     /// Most ofter you use this method in the following way:
     ///
     ///     overrive func setup() -> Void {
-    ///         embedChildModule(byName: "Feed")
-    ///         embedChildModule(byName: "Messages")
-    ///         embedChildModule(byName: "Settings")
+    ///         embedChildModule(byName: FeedModule.name)
+    ///         embedChildModule(byName: MessagesModule.name)
+    ///         embedChildModule(byName: SettingsModule.name)
     ///         isDependentOnEmbeddedModules = true
     ///         isUnloadedIfCompleted = false
-    ///         loadChildModule(byName: "Orders")
+    ///         loadChildModule(byName: OrdersModule.name)
     ///     }
     ///
-    /// You don't need to call the `super` method.
+    /// You don't need to call the `super` method, because the default implementation does nothing.
     open func setup() -> Void {}
     
     /// Cleans this module after it stops working.
     ///
     /// This method is called when this module is about to be unloaded from memory and disassembled.
     /// You usually override this method to clean your properties.
-    /// You don't need to call the `super` method.
+    /// You don't need to call the `super` method, because the default implementation does nothing.
     open func clean() -> Void {}
     
     /// Performs internal setup for this module before it starts working by calling setup methods of this module and its inner components.
@@ -1055,6 +1036,7 @@ public protocol RAModuleInterface: RAComponent {
 }
 
 
+// MARK: - Delegates
 
 /// The methods adopted by the object you use to provide data for specific modules.
 public protocol RAModuleDataProvider where Self: RAAnyObject {
@@ -1091,9 +1073,6 @@ public protocol RAModuleDataHandler where Self: RAAnyObject {
 
 /// The methods adopted by the object you use to manage the lifecycle of a specific module.
 public protocol RAModuleLifecycleDelegate where Self: RAAnyObject {
-    
-    /// Asks the delegate what dependency is required in order for the module to be loaded.
-    func moduleCanLoad(with dependency: RADependency?) -> Bool
     
     /// Notifies the delegate that the module is loaded into the parent memory.
     func moduleDidLoad() -> Void
