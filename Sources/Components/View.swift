@@ -30,11 +30,11 @@ public protocol RAView: RAComponent, RAIntegratable where Self: UIViewController
     ///
     ///     protocol AuthViewToInteractorInterface {
     ///
-    ///         func userEntersUsername(_ username: String) -> Void
+    ///         func userDidEnterUsername(_ username: String) -> Void
     ///
-    ///         func userEntersPassword(_ password: String) -> Void
+    ///         func userDidEnterPassword(_ password: String) -> Void
     ///
-    ///         func userTapsLoginButton() -> Void
+    ///         func userDidTapLoginButton() -> Void
     ///
     ///     }
     ///
@@ -48,12 +48,12 @@ public protocol RAView: RAComponent, RAIntegratable where Self: UIViewController
     /// This method is used when the module has embedded children.
     /// So you load the view controllers of these modules in the following way:
     ///
-    ///     let messagesViewController: UIViewController!
-    ///     let settingsViewController: UIViewController!
+    ///     var messagesViewController: UIViewController!
+    ///     var settingsViewController: UIViewController!
     ///
     ///     func loadEmbeddedViewControllers() -> Bool {
-    ///         guard let messagesViewController = embeddedChildren["Messages"],
-    ///               let settingsViewController = embeddedChildren["Settings"]
+    ///         guard let messagesViewController = embeddedChildren[MessagesModule.name],
+    ///               let settingsViewController = embeddedChildren[SettingsModule.name]
     ///         else { return false }
     ///         self.messagesViewController = messagesViewController
     ///         self.settingsViewController = settingsViewController

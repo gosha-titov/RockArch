@@ -86,11 +86,11 @@ public struct RAStrongObject: RAObject {
 ///
 /// Classes that conform to this protocol can be identified by the `name` and `type` properties:
 ///
-///     object.name // "Appearance"
+///     object.name // "Messages"
 ///     object.type // "Module"
 ///
 ///     print(object)
-///     // Prints "Appearance-Module" by default
+///     // Prints "Messages-Module" by default
 ///
 /// All key classes conform to the `RAAnyObject` protocol.
 public protocol RAAnyObject: RAObject, AnyObject {}

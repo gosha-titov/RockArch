@@ -655,8 +655,8 @@ open class RARouter: NSObject, RAComponent, RAIntegratable, RARouterInterface {
     ///     let settingsViewController: UIViewController!
     ///
     ///     func loadEmbeddedViewControllers() -> Bool {
-    ///         guard let messagesViewController = embeddedViewControllers["Messages"],
-    ///               let settingsViewController = embeddedViewControllers["Settings"]
+    ///         guard let messagesViewController = embeddedViewControllers[MessagesModule.name],
+    ///               let settingsViewController = embeddedViewControllers[SettingsModule.name]
     ///         else { return false }
     ///         self.messagesViewController = messagesViewController
     ///         self.settingsViewController = settingsViewController
@@ -749,9 +749,8 @@ public protocol RARouterInterface {
     ///
     /// This method represents the hiding, stopping and unloading this module.
     /// - Parameter animated: Specify `true` to animate the transition, or `false` if you do not want the transition to be animated.
-    /// The default value is `true`.
     /// - Parameter completion: The block to execute after the view controller is hidden.
-    /// This block has no return value and takes no parameters. The default value is `nil`.
+    /// This block has no return value and takes no parameters.
     func complete(animated: Bool, completion: (() -> Void)?) -> Void
     
     /// Show a view controller of a specific child module by using its preferred transition.
@@ -759,9 +758,8 @@ public protocol RARouterInterface {
     /// This method represents the building, loading, starting and showing a child module.
     /// - Parameter childName: The associated name of a module to be shown.
     /// - Parameter animated: Specify `true` to animate the transition, or `false` if you do not want the transition to be animated.
-    /// The default value is `true`.
     /// - Parameter completion: The block to execute after the showing finishes.
-    /// This block has no return value and takes no parameters. The default value is `nil`.
+    /// This block has no return value and takes no parameters.
     func showChildModule(byName childName: String, animated: Bool, completion: (() -> Void)?) -> Void
     
     /// Hides a view controller of a specifc child module in the reverse way to how it was shown.
@@ -769,9 +767,8 @@ public protocol RARouterInterface {
     /// This method represents the hiding, stopping and unloading a child module.
     /// - Parameter childName: The associated name of a module to be dismissed.
     /// - Parameter animated: Specify `true` to animate the transition, or `false` if you do not want the transition to be animated.
-    /// The default value is `true`.
     /// - Parameter completion: The block to execute after the view controller is dismissed.
-    /// This block has no return value and takes no parameters. The default value is `nil`.
+    /// This block has no return value and takes no parameters.
     func hideChildModule(byName childName: String, animated: Bool, completion: (() -> Void)?) -> Void
     
     /// Presents a view controller of a specific child module modally.
@@ -779,9 +776,8 @@ public protocol RARouterInterface {
     /// This method represents the building, loading, starting and presenting a child module.
     /// - Parameter childName: The associated name of a module to be present.
     /// - Parameter animated: Specify `true` to animate the transition, or `false` if you do not want the transition to be animated.
-    /// The default value is `true`.
     /// - Parameter completion: The block to execute after the presentation finishes.
-    /// This block has no return value and takes no parameters. The default value is `nil`.
+    /// This block has no return value and takes no parameters.
     func presentChildModule(byName childName: String, animated: Bool, completion: (() -> Void)?) -> Void
     
     /// Dismesses a view controller of a specific child module that was presented modally.
@@ -790,9 +786,8 @@ public protocol RARouterInterface {
     /// You can dismiss a child module only if its view controller was presented modally.
     /// - Parameter childName: The associated name of a module to be dismissed.
     /// - Parameter animated: Specify `true` to animate the transition, or `false` if you do not want the transition to be animated.
-    /// The default value is `true`.
     /// - Parameter completion: The block to execute after the view controller is dismissed.
-    /// This block has no return value and takes no parameters. The default value is `nil`.
+    /// This block has no return value and takes no parameters.
     func dismissChildModule(byName childName: String, animated: Bool, completion: (() -> Void)?) -> Void
     
     /// Pushes a view controller of a specific child module onto a navigation stack.
@@ -803,9 +798,8 @@ public protocol RARouterInterface {
     /// That is, **B** is also able to push its child modules.
     /// - Parameter childName: The associated name of a module to be pushed.
     /// - Parameter animated: Specify `true` to animate the transition or `false` if you do not want the transition to be animated.
-    /// The default value is `true`.
     /// - Parameter completion: The block to execute after the pushing finishes.
-    /// This block has no return value and takes no parameters. The default value is `nil`.
+    /// This block has no return value and takes no parameters.
     func pushChildModule(byName childName: String, animated: Bool, completion: (() -> Void)?) -> Void
     
     /// Pops a view controller of a specific child module from the navigation stack.
@@ -813,27 +807,24 @@ public protocol RARouterInterface {
     /// This method represents the popping, stopping and unloading a child module on the navigation stack.
     /// - Parameter childName: The associated name of a module to be popped.
     /// - Parameter animated: Specify `true` to animate the transition or `false` if you do not want the transition to be animated.
-    /// The default value is `true`.
     /// - Parameter completion: The block to execute after the view controller is popped.
-    /// This block has no return value and takes no parameters. The default value is `nil`.
+    /// This block has no return value and takes no parameters.
     func popChildModule(byName childName: String, animated: Bool, completion: (() -> Void)?) -> Void
     
     /// Pops view controllers until the view controller of this module is at the top of the navigation stack.
     ///
     /// This method represents the popping, stopping and unloading child modules on the navigation stack.
     /// - Parameter animated: Specify `true` to animate the transition or `false` if you do not want the transition to be animated.
-    /// The default value is `true`.
     /// - Parameter completion: The block to execute after the view controllers are popped.
-    /// This block has no return value and takes no parameters. The default value is `nil`.
+    /// This block has no return value and takes no parameters.
     func popToThisModule(animated: Bool, completion: (() -> Void)?) -> Void
     
     /// Pops all modules on the stack except the root module.
     ///
     /// This method represents the popping, stopping and unloading all modules on the navigation stack except the root module.
     /// - Parameter animated: Specify `true` to animate the transition or `false` if you do not want the transition to be animated.
-    /// The default value is `true`.
     /// - Parameter completion: The block to execute after the view controllers are popped.
-    /// This block has no return value and takes no parameters. The default value is `nil`.
+    /// This block has no return value and takes no parameters.
     func popToRootModule(animated: Bool, completion: (() -> Void)?) -> Void
     
     /// Selects a view controller of a specific child module.
@@ -841,7 +832,7 @@ public protocol RARouterInterface {
     /// You can select an embedded child module only when this module has a tab bar controller.
     /// - Parameter childName: The associated name of an embedded module to be selected.
     /// - Parameter completion: The block to execute after the selecting finishes.
-    /// This block has no return value and takes no parameters. The default value is `nil`.
+    /// This block has no return value and takes no parameters.
     func selectChildModule(byName childName: String, completion: (() -> Void)?) -> Void
     
 }

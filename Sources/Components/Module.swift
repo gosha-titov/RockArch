@@ -52,6 +52,9 @@ import UIKit // to launch from the window
 //                                               setup()
 //               moduleDidLoad()
 //   ├ ─ ─ ─ ─ ┼ ─ ─ ─ ─ ─ ─ ┼ ─ ─ ─ ─ ┼ ─ ─ ─ ┼ ─ ─ ─ ─ ┤
+//     canStart(with:)
+//               moduleCanStart(with:)
+//   ├ ─ ─ ─ ─ ┼ ─ ─ ─ ─ ─ ─ ┼ ─ ─ ─ ─ ┼ ─ ─ ─ ┼ ─ ─ ─ ─ ┤
 //               moduleWillStart()
 //     start()
 //                                       viewDidLoad()
@@ -103,7 +106,7 @@ import UIKit // to launch from the window
 ///
 /// For starting the module tree, you call the `launch(from:)` method that will make this module the root.
 ///
-/// For example, the main module may look like this:
+/// For example, the *Main* (root) module may look like this:
 ///
 ///     final class MainModule: RAModule {
 ///
@@ -129,6 +132,24 @@ import UIKit // to launch from the window
 ///
 ///     }
 ///
+/// The module may also has a dependency:
+///
+///     final class SettingsModule: RAModule {
+///
+///         static let name = "Settings"
+///
+///         init(storage: SettingsStorageInterface) {
+///             super.init(
+///                 name:       SettingsModule.name,
+///                 interactor: SettingsInteractor(storage: storage),
+///                 router:     SettingsRouter(),
+///                 view:       SettingsView(),
+///                 builder:    SettingsBuilder()
+///             )
+///         }
+///
+///     }
+///
 /// - Note: Each component can log messages by calling the `log(_:category:level:)` method.
 /// These messages are handled by the current black box with its loggers.
 ///
@@ -138,7 +159,7 @@ open class RAModule: RAModuleInterface {
     
     /// A string associated with the name of this module.
     ///
-    /// You usually name modules like: `Main`, `Feed`, `Chats`, `Settings`, `Profile`, `Appearance` and so on.
+    /// You usually name modules like: *Main*, *Feed*, *Chats*, *Settings*, *Profile*, etc.
     /// It's mainly used to build and start modules, to communicate and interact with other modules, to log messages.
     /// - Note: Names are an important part of the architecture.
     /// In order to avoid ambiguities,  **name modules uniquely**.
@@ -157,7 +178,7 @@ open class RAModule: RAModuleInterface {
     
     /// A string containing the full path to this module.
     ///
-    /// For example, the path to the `Themes` module may look like this:
+    /// For example, the path to the *Themes* module may look like this:
     ///
     ///     module.path // "Main/Settings/Appearance/Themes"
     ///

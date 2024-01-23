@@ -1,12 +1,12 @@
 /// A deep link that can open a specific module anywhere in the entire module tree along a given path.
 ///
 /// The builder design pattern is used to create a deep link.
-/// For example, the link to the `Post` module may look like this:
+/// For example, the link to the *Post* module may look like this:
 ///
 ///     let link = RADeepLink
-///         .root("Main")
-///         .then(to: "Feed")
-///         .then(to: "Post", by: postID)
+///         .root(MainModule.name)
+///         .then(to: FeedModule.name)
+///         .then(to: PostModule.name, with: postID)
 ///         .named("LinkToPost")
 ///
 ///     link.open()
@@ -23,22 +23,22 @@ public struct RADeepLink: RAObject {
     
     // MARK: - Properties
     
-    /// A string associated with the name of this deep link.
+    /// The string associated with the name of this deep link.
     ///
-    /// You usually name links like: `LinkToChat` or`FriendProfileLink`.
+    /// You usually name links like: *LinkToChat* or *FriendProfileLink*.
     /// Names do not affect anything. They are used to understand more clearly what should happen.
     ///
     /// The default value is "Unnamed".
     public var name = "Unnamed"
     
-    /// A textual representation of the type of this object.
+    /// The textual representation of the type of this object.
     ///
     /// This property has the "DeepLink" value.
     public let type = "DeepLink"
     
     /// A textual representation of this deep link.
     ///
-    /// For example, the link to the `Post` module may look like this:
+    /// For example, the link to the *Post* module may look like this:
     ///
     ///     print(deeplink)
     ///     // Prints "Main -> Feed -> Post"
@@ -47,7 +47,7 @@ public struct RADeepLink: RAObject {
         return elements.toString(separator: " –> ")
     }
     
-    /// An array of elements that are arranged in the order in which they are opened.
+    /// The list of elements that are arranged in the order in which they are opened.
     public private(set) var elements = [Element]()
     
     
@@ -56,7 +56,7 @@ public struct RADeepLink: RAObject {
     /// Returns a new deep link where the given module added to the top of this link.
     /// - Parameter moduleName: The name associated with a specific module.
     /// - Parameter context: The context to be provided to this module.
-    public func then(to moduleName: String, by context: RAContext? = nil) -> RADeepLink {
+    public func then(to moduleName: String, with context: RAContext? = nil) -> RADeepLink {
         let element = Element(name: name, context: context)
         return then(to: element)
     }
@@ -90,7 +90,7 @@ extension RADeepLink {
     /// An element of the link that associated with a specific module.
     public struct Element: CustomStringConvertible {
         
-        /// A string associated with the name of a specific module.
+        /// The string associated with the name of a specific module.
         public let name: String
         
         /// A context to be provided to a specific module.
