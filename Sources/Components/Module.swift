@@ -468,15 +468,15 @@ open class RAModule: RAModuleInterface {
         return result
     }
     
-    /// Provides a context to the given child module.
+    /// Provides a specified context (otherwise, provided one) to the given child module.
     /// - Returns: `True` if this child module can be started; otherwise, `false`.
-    private func provideContext(to child: RAModule) -> Bool {
+    private func provideContext(priorityСontext: RAContext? = nil, to child: RAModule) -> Bool {
         guard child.isInactive else {
             log("Couldn't provide a context to the `\(child.name)` child module because it was already started",
                 category: .moduleManagement, level: .error)
             return false
         }
-        let context = dataProvider.context(forChildModuleWithName: child.name)
+        let context = priorityСontext ?? dataProvider.context(forChildModuleWithName: child.name)
         return child.canStart(with: context)
     }
     
@@ -486,8 +486,8 @@ open class RAModule: RAModuleInterface {
     /// Invokes a specific child module by its associated name.
     ///
     /// The invoking process represents the building, loading and starting a specific child module,
-    /// or starting a child module that was already preloaded.
-    internal final func invokeChild(byName childName: String, animation show: RADefaultAnimation) -> Bool {
+    /// or starting a child module that was already loaded.
+    internal final func invokeChild(byName childName: String, with context: RAContext?, animation show: RADefaultAnimation) -> Bool {
         guard isLoaded else {
             log("Couldn't invoke the `\(childName)` child module because this module wasn't loaded",
                 category: .moduleManagement, level: .error)
@@ -515,12 +515,12 @@ open class RAModule: RAModuleInterface {
             }
             child = newChild
         }
-        return start(child, animation: show)
+        return start(child, with: context, animation: show)
     }
     
     /// Revokes a specific child module by its associated name.
     ///
-    /// The invoking process represents the stopping (and sometimes unloading) child module.
+    /// The invoking process represents the stopping (and usually unloading) child module.
     internal final func revokeChild(byName childName: String, animation hide: RADefaultAnimation) -> Bool {
         guard isLoaded else {
             log("Couldn't revoke the `\(childName)` child module because this module wasn't loaded",
@@ -549,7 +549,7 @@ open class RAModule: RAModuleInterface {
     /// The starting process includes providing a context to the given child.
     /// - Returns: `True` if the child module has been started; otherwise, `false`.
     @discardableResult
-    private func start(_ child: RAModule, animation show: RADefaultAnimation) -> Bool {
+    private func start(_ child: RAModule, with context: RAContext?, animation show: RADefaultAnimation) -> Bool {
         guard isLoaded else {
             log("Couldn't start the `\(child.name)` child module because this module wasn't loaded",
                 category: .moduleManagement, level: .error)
@@ -571,7 +571,7 @@ open class RAModule: RAModuleInterface {
                 category: .moduleManagement, level: .warning)
             return false
         }
-        let childCanStart = provideContext(to: child)
+        let childCanStart = provideContext(priorityСontext: context, to: child)
         guard childCanStart else {
             log("Couldn't start the `\(child.name)` child module",
                 category: .moduleManagement, level: .error)

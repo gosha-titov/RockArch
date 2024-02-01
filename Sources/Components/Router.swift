@@ -139,11 +139,12 @@ open class RARouter: NSObject, RAComponent, RAIntegratable, RARouterInterface {
     ///
     /// This method represents the building, loading, starting and showing a child module.
     /// - Parameter childName: The associated name of a module to be shown.
+    /// - Parameter context: A context containing the key information for a child module to start its work.
     /// - Parameter animated: Specify `true` to animate the transition, or `false` if you do not want the transition to be animated.
     /// The default value is `true`.
     /// - Parameter completion: The block to execute after the showing finishes.
     /// This block has no return value and takes no parameters. The default value is `nil`.
-    public final func showChildModule(byName childName: String, animated: Bool = true, completion: (() -> Void)? = nil) -> Void {
+    public final func showChildModule(byName childName: String, context: RAContext? = nil, animated: Bool = true, completion: (() -> Void)? = nil) -> Void {
         guard isActive else {
             log("Couldn't show the `\(childName)` child module because this router wasn't active",
                 category: .moduleRouting, level: .error)
@@ -165,9 +166,9 @@ open class RARouter: NSObject, RAComponent, RAIntegratable, RARouterInterface {
             return
         }
         switch childPreferredTransition {
-        case .present: presentChildModule(byName: childName, animated: animated, completion: completion)
-        case .push:    pushChildModule   (byName: childName, animated: animated, completion: completion)
-        case .select:  selectChildModule (byName: childName,                     completion: completion)
+        case .present: presentChildModule(byName: childName, context: context, animated: animated, completion: completion)
+        case .push:    pushChildModule   (byName: childName, context: context, animated: animated, completion: completion)
+        case .select:  selectChildModule (byName: childName,                                       completion: completion)
         }
     }
     
@@ -217,11 +218,12 @@ open class RARouter: NSObject, RAComponent, RAIntegratable, RARouterInterface {
     ///
     /// This method represents the building, loading, starting and presenting a child module.
     /// - Parameter childName: The associated name of a module to be present.
+    /// - Parameter context: A context containing the key information for a child module to start its work.
     /// - Parameter animated: Specify `true` to animate the transition, or `false` if you do not want the transition to be animated.
     /// The default value is `true`.
     /// - Parameter completion: The block to execute after the presentation finishes.
     /// This block has no return value and takes no parameters. The default value is `nil`.
-    public final func presentChildModule(byName childName: String, animated: Bool = true, completion: (() -> Void)? = nil) -> Void {
+    public final func presentChildModule(byName childName: String, context: RAContext? = nil, animated: Bool = true, completion: (() -> Void)? = nil) -> Void {
         guard isActive else {
             log("Couldn't present the `\(childName)` child module because this router wasn't active",
                 category: .moduleRouting, level: .error)
@@ -245,7 +247,7 @@ open class RARouter: NSObject, RAComponent, RAIntegratable, RARouterInterface {
         let presentChildViewController: RADefaultAnimation = { childViewController in
             viewControllerThatPresents.present(childViewController, animated: animated, completion: completion)
         }
-        guard module.invokeChild(byName: childName, animation: presentChildViewController) else {
+        guard module.invokeChild(byName: childName, with: context, animation: presentChildViewController) else {
             log("Couldn't present the `\(childName)` child module because it wasn't invoked",
                 category: .moduleRouting, level: .error)
             return
@@ -304,11 +306,12 @@ open class RARouter: NSObject, RAComponent, RAIntegratable, RARouterInterface {
     /// - Note: When the **A** module pushes the **B** child module, **A** shares a navigation controller to **B**.
     /// That is, **B** is also able to push its child modules.
     /// - Parameter childName: The associated name of a module to be pushed.
+    /// - Parameter context: A context containing the key information for a child module to start its work.
     /// - Parameter animated: Specify `true` to animate the transition or `false` if you do not want the transition to be animated.
     /// The default value is `true`.
     /// - Parameter completion: The block to execute after the pushing finishes.
     /// This block has no return value and takes no parameters. The default value is `nil`.
-    public final func pushChildModule(byName childName: String, animated: Bool = true, completion: (() -> Void)? = nil) -> Void {
+    public final func pushChildModule(byName childName: String, context: RAContext? = nil, animated: Bool = true, completion: (() -> Void)? = nil) -> Void {
         guard isActive else {
             log("Couldn't push the `\(childName)` child module because this router wasn't active",
                 category: .moduleRouting, level: .error)
@@ -348,7 +351,7 @@ open class RARouter: NSObject, RAComponent, RAIntegratable, RARouterInterface {
             sharedNavigationRouter.navigationStack.append(child)
             sharedNavigationController.push(childViewController, animated: animated, completion: completion)
         }
-        guard module.invokeChild(byName: childName, animation: pushChildViewController) else {
+        guard module.invokeChild(byName: childName, with: context, animation: pushChildViewController) else {
             log("Couldn't push the `\(childName)` child module because it wasn't invoked",
                 category: .moduleRouting, level: .error)
             return
@@ -757,10 +760,11 @@ public protocol RARouterInterface {
     ///
     /// This method represents the building, loading, starting and showing a child module.
     /// - Parameter childName: The associated name of a module to be shown.
+    /// - Parameter context: A context containing the key information for a child module to start its work.
     /// - Parameter animated: Specify `true` to animate the transition, or `false` if you do not want the transition to be animated.
     /// - Parameter completion: The block to execute after the showing finishes.
     /// This block has no return value and takes no parameters.
-    func showChildModule(byName childName: String, animated: Bool, completion: (() -> Void)?) -> Void
+    func showChildModule(byName childName: String, context: RAContext?, animated: Bool, completion: (() -> Void)?) -> Void
     
     /// Hides a view controller of a specifc child module in the reverse way to how it was shown.
     ///
@@ -775,10 +779,11 @@ public protocol RARouterInterface {
     ///
     /// This method represents the building, loading, starting and presenting a child module.
     /// - Parameter childName: The associated name of a module to be present.
+    /// - Parameter context: A context containing the key information for a child module to start its work.
     /// - Parameter animated: Specify `true` to animate the transition, or `false` if you do not want the transition to be animated.
     /// - Parameter completion: The block to execute after the presentation finishes.
     /// This block has no return value and takes no parameters.
-    func presentChildModule(byName childName: String, animated: Bool, completion: (() -> Void)?) -> Void
+    func presentChildModule(byName childName: String, context: RAContext?, animated: Bool, completion: (() -> Void)?) -> Void
     
     /// Dismesses a view controller of a specific child module that was presented modally.
     ///
@@ -797,10 +802,11 @@ public protocol RARouterInterface {
     /// - Note: When the **A** module pushes the **B** child module, **A** shares a navigation controller to **B**.
     /// That is, **B** is also able to push its child modules.
     /// - Parameter childName: The associated name of a module to be pushed.
+    /// - Parameter context: A context containing the key information for a child module to start its work.
     /// - Parameter animated: Specify `true` to animate the transition or `false` if you do not want the transition to be animated.
     /// - Parameter completion: The block to execute after the pushing finishes.
     /// This block has no return value and takes no parameters.
-    func pushChildModule(byName childName: String, animated: Bool, completion: (() -> Void)?) -> Void
+    func pushChildModule(byName childName: String, context: RAContext?, animated: Bool, completion: (() -> Void)?) -> Void
     
     /// Pops a view controller of a specific child module from the navigation stack.
     ///

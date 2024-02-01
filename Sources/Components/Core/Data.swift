@@ -8,7 +8,7 @@ public typealias RADependency = Any
 
 
 
-/// A context within which a module starts the work.
+/// A context containing the key information for a module to start its work.
 ///
 /// When one module shows another, it can pass a context in order to indicate key information.
 ///
