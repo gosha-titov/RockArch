@@ -7,7 +7,7 @@
 ///         .root(MainModule.name)
 ///         .then(to: FeedModule.name)
 ///         .then(to: PostModule.name, with: postID)
-///         .named("LinkToPost")
+///         .named("OpenPost")
 ///
 ///     link.open()
 ///
@@ -21,11 +21,9 @@ public struct RADeepLink: RAObject {
     }
     
     
-    // MARK: - Properties
-    
     /// The string associated with the name of this deep link.
     ///
-    /// You usually name links like: *LinkToChat* or *FriendProfileLink*.
+    /// You usually name links like: *OpenChat* or *ShowFriendProfile*.
     /// Names do not affect anything. They are used to understand more clearly what should happen.
     ///
     /// The default value is "Unnamed".
@@ -51,7 +49,7 @@ public struct RADeepLink: RAObject {
     public private(set) var elements = [Element]()
     
     
-    // MARK: - Methods
+    // MARK: Methods
     
     /// Returns a new deep link where the given module added to the top of this link.
     /// - Parameter moduleName: The name associated with a specific module.
@@ -76,7 +74,7 @@ public struct RADeepLink: RAObject {
     }
     
     
-    // MARK: - Init
+    // MARK: Init
     
     /// Creates a deep link instance.
     private init() {}
