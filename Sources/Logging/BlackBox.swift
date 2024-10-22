@@ -23,7 +23,7 @@ import Foundation
 ///
 open class RABlackBox: RAAnyObject {
     
-    /// The black box that is currently in use.
+    /// The black box to which all log messages are directed.
     ///
     /// You can set your own black box to redirect log messages.
     /// By default, the current black box is `.console`.
@@ -39,11 +39,6 @@ open class RABlackBox: RAAnyObject {
         return .init(name: "OS", loggers: [RAOSLogger()])
     }()
     
-    /// The default serial queue in which logging performs.
-    ///
-    /// The queue has the `.background` quality-of-service.
-    public static let queue = DispatchQueue(label: "com.rockarch.blackbox-default", qos: .background)
-    
     /// A string associated with the name of this black box.
     public let name: String
     
@@ -54,9 +49,6 @@ open class RABlackBox: RAAnyObject {
     
     /// Loggers that receive all messages from this black box.
     public let loggers: [RALogger]
-    
-    /// The queue in which logging performs.
-    public let queue: DispatchQueue
     
     /// Logs a specific message by passing it to loggers.
     ///
@@ -71,8 +63,8 @@ open class RABlackBox: RAAnyObject {
     /// - Parameter author:   The string that describes an author of this message.
     /// - Parameter category: The string that describes a category of this message.
     /// - Parameter level:    The level associated how important this message is.
-    public final func log(_ message: String, author: String, category: String, level: RALogLevel, fileID: String = #fileID, function: String = #function, line: Int = #line) -> Void {
-        queue.async {
+    @inlinable public final func log(_ message: String, author: String, category: String, level: RALogLevel, fileID: String = #fileID, function: String = #function, line: Int = #line) -> Void {
+        Task(priority: .background) {
             let info = RAInfo(fileID: fileID, function: function, line: line)
             let message = RALogMessage(author: author, text: message, category: category, level: level, info: info)
             for logger in self.loggers where logger.thresholdLogLevel <= level {
@@ -87,14 +79,16 @@ open class RABlackBox: RAAnyObject {
     /// - Parameter queue: The queue in which logging will be performed.
     /// To keep the correct order of messages, pass a serial queue.
     /// The default value is `RABlackBox.queue`.
-    public init(name: String, loggers: [RALogger], queue: DispatchQueue = RABlackBox.queue) {
+    public init(name: String, loggers: [RALogger]) {
         self.loggers = loggers
-        self.queue = queue
         self.name = name
     }
     
 }
 
+
+
+// MARK: - Behavior Extensions
 
 extension RABlackBox {
     
@@ -121,7 +115,7 @@ extension RABlackBox {
     /// - Parameter author:   The string that describes an author of this message.
     /// - Parameter category: The string that describes a category of this message.
     /// - Parameter level:    The level associated how important this message is.
-    public static func log(_ message: String, author: String, category: String, level: RALogLevel, fileID: String = #fileID, function: String = #function, line: Int = #line) -> Void {
+    @inlinable public static func log(_ message: String, author: String, category: String, level: RALogLevel, fileID: String = #fileID, function: String = #function, line: Int = #line) -> Void {
         current.log(message, author: author, category: category, level: level, fileID: fileID, function: function, line: line)
     }
     
@@ -136,7 +130,7 @@ extension RABlackBox {
     /// - Parameter message:  The text to log.
     /// - Parameter author:   The string that describes an author of this message.
     /// - Parameter category: The string that describes a category of this message.
-    public static func trace(_ message: String, author: String, category: String, fileID: String = #fileID, function: String = #function, line: Int = #line) -> Void {
+    @inlinable public static func trace(_ message: String, author: String, category: String, fileID: String = #fileID, function: String = #function, line: Int = #line) -> Void {
         log(message, author: author, category: category, level: .trace, fileID: fileID, function: function, line: line)
     }
     
@@ -151,7 +145,7 @@ extension RABlackBox {
     /// - Parameter message:  The text to log.
     /// - Parameter author:   The string that describes an author of this message.
     /// - Parameter category: The string that describes a category of this message.
-    public static func debug(_ message: String, author: String, category: String, fileID: String = #fileID, function: String = #function, line: Int = #line) -> Void {
+    @inlinable public static func debug(_ message: String, author: String, category: String, fileID: String = #fileID, function: String = #function, line: Int = #line) -> Void {
         log(message, author: author, category: category, level: .debug, fileID: fileID, function: function, line: line)
     }
     
@@ -166,14 +160,14 @@ extension RABlackBox {
     /// - Parameter message:  The text to log.
     /// - Parameter author:   The string that describes an author of this message.
     /// - Parameter category: The string that describes a category of this message.
-    public static func info(_ message: String, author: String, category: String, fileID: String = #fileID, function: String = #function, line: Int = #line) -> Void {
+    @inlinable public static func info(_ message: String, author: String, category: String, fileID: String = #fileID, function: String = #function, line: Int = #line) -> Void {
         log(message, author: author, category: category, level: .info, fileID: fileID, function: function, line: line)
     }
     
     /// Logs a specific message by passing it to the current black box and specifying the `.warning` log level.
     ///
     ///     RABlackBox.warning(
-    ///         "Attemp to add the friend that was already added",
+    ///         "Attemp to add a friend that was already added",
     ///         author: "Friend-CollectionView",
     ///         category: "User"
     ///     )
@@ -181,7 +175,7 @@ extension RABlackBox {
     /// - Parameter message:  The text to log.
     /// - Parameter author:   The string that describes an author of this message.
     /// - Parameter category: The string that describes a category of this message.
-    public static func warning(_ message: String, author: String, category: String, fileID: String = #fileID, function: String = #function, line: Int = #line) -> Void {
+    @inlinable public static func warning(_ message: String, author: String, category: String, fileID: String = #fileID, function: String = #function, line: Int = #line) -> Void {
         log(message, author: author, category: category, level: .warning, fileID: fileID, function: function, line: line)
     }
     
@@ -196,7 +190,7 @@ extension RABlackBox {
     /// - Parameter message:  The text to log.
     /// - Parameter author:   The string that describes an author of this message.
     /// - Parameter category: The string that describes a category of this message.
-    public static func error(_ message: String, author: String, category: String, fileID: String = #fileID, function: String = #function, line: Int = #line) -> Void {
+    @inlinable public static func error(_ message: String, author: String, category: String, fileID: String = #fileID, function: String = #function, line: Int = #line) -> Void {
         log(message, author: author, category: category, level: .error, fileID: fileID, function: function, line: line)
     }
     
@@ -211,7 +205,7 @@ extension RABlackBox {
     /// - Parameter message:  The text to log.
     /// - Parameter author:   The string that describes an author of this message.
     /// - Parameter category: The string that describes a category of this message.
-    public static func fatal(_ message: String, author: String, category: String, fileID: String = #fileID, function: String = #function, line: Int = #line) -> Void {
+    @inlinable public static func fatal(_ message: String, author: String, category: String, fileID: String = #fileID, function: String = #function, line: Int = #line) -> Void {
         log(message, author: author, category: category, level: .fatal, fileID: fileID, function: function, line: line)
     }
     

@@ -3,6 +3,7 @@ import UIKit
 internal extension UINavigationController {
     
     /// Pushes a view controller onto the receiver’s stack and updates the display.
+    @inlinable
     func push(_ viewController: UIViewController, animated: Bool = true, completion: (() -> Void)?) -> Void {
         CATransaction.begin()
         CATransaction.setCompletionBlock(completion)
@@ -11,7 +12,7 @@ internal extension UINavigationController {
     }
     
     /// Pops the top view controller from the navigation stack and updates the display.
-    @discardableResult
+    @discardableResult @inlinable
     func popViewController(animated: Bool = true, completion: (() -> Void)?) -> UIViewController? {
         CATransaction.begin()
         CATransaction.setCompletionBlock(completion)
@@ -21,7 +22,7 @@ internal extension UINavigationController {
     }
     
     /// Pops view controllers until the specified view controller is at the top of the navigation stack.
-    @discardableResult
+    @discardableResult @inlinable
     func popToViewController(_ viewController: UIViewController, animated: Bool, completion: (() -> Void)?) -> [UIViewController]? {
         CATransaction.begin()
         CATransaction.setCompletionBlock(completion)
@@ -31,7 +32,7 @@ internal extension UINavigationController {
     }
     
     /// Pops all the view controllers on the stack except the root view controller and updates the display.
-    @discardableResult
+    @discardableResult @inlinable
     func popToRootViewController(animated: Bool = true, completion: (() -> Void)?) -> [UIViewController]? {
         CATransaction.begin()
         CATransaction.setCompletionBlock(completion)

@@ -281,6 +281,14 @@ open class RAModule: RAModuleInterface {
     public var dataHandler: RAModuleDataHandler
     
     
+    // MARK: - Opening DeepLink
+    
+    @inlinable static func open(deeplink: RADeepLink, animated: Bool) -> Void {
+        
+    }
+    
+    
+    
     // MARK: - Launching
     
     /// Launches the module tree from the given window, making this module the root.

@@ -27,7 +27,7 @@ public struct RAConsoleLogger: RALogger {
     public var thresholdLogLevel: RALogLevel = .trace
     
     /// Logs a specific message by printing it to the console.
-    public func log(_ message: RALogMessage) -> Void {
+    @inlinable public func log(_ message: RALogMessage) -> Void {
         let formatter = DateFormatter()
         formatter.timeStyle = .medium
         let time = formatter.string(from: message.timestamp)
@@ -74,7 +74,7 @@ public struct RAOSLogger: RALogger {
     public var thresholdLogLevel: RALogLevel = .info
     
     /// Logs a specific message by sending it to the logging system.
-    public func log(_ message: RALogMessage) -> Void {
+    @inlinable public func log(_ message: RALogMessage) -> Void {
         let log = OSLog(subsystem: message.author, category: message.category)
         let logType = message.level.toOSLogType
         let message = message.text
@@ -164,14 +164,14 @@ public extension RALogger {
     /// The threshold log level that restricts the flow of incoming log messages from a black box.
     ///
     /// It's the default implementation of this property, so the threshold level is `.trace`.
-    var thresholdLogLevel: RALogLevel {
+    @inlinable var thresholdLogLevel: RALogLevel {
         return .trace
     }
     
     /// A textual representation of the type of this logger.
     ///
     /// It's the default implementation of this property, so the type has the "Logger" value.
-    var type: String {
+    @inlinable var type: String {
         return "Logger"
     }
     

@@ -12,101 +12,115 @@
 ///     link.open()
 ///
 /// - Note: You can start creating a deep link only by calling the `root(_:)` static method first.
-public struct RADeepLink: RAObject {
+public struct RADeepLink {
     
-    /// Returns a deep link where the given root module is the entry point of this link.
+    /// Returns a new deep link where the given root module is the entry point of this link.
     /// - Parameter rootModuleName: The name associated with the root module.
-    public static func root(_ rootModuleName: String) -> RADeepLink {
+    @inlinable public static func root(_ rootModuleName: String) -> RADeepLink {
         return RADeepLink().then(to: rootModuleName)
     }
     
+    /// The array of elements that are arranged in the order in which they should be opened.
+    public let elements: [Element]
     
-    /// The string associated with the name of this deep link.
+    /// A string associated with the name of this deep link.
     ///
     /// You usually name links like: *OpenChat* or *ShowFriendProfile*.
     /// Names do not affect anything. They are used to understand more clearly what should happen.
-    ///
-    /// The default value is "Unnamed".
-    public var name = "Unnamed"
-    
-    /// The textual representation of the type of this object.
-    ///
-    /// This property has the "DeepLink" value.
-    public let type = "DeepLink"
-    
-    /// A textual representation of this deep link.
-    ///
-    /// For example, the link to the *Post* module may look like this:
-    ///
-    ///     print(deeplink)
-    ///     // Prints "Main -> Feed -> Post"
-    ///
-    public var description: String {
-        return elements.toString(separator: " –> ")
-    }
-    
-    /// The list of elements that are arranged in the order in which they are opened.
-    public private(set) var elements = [Element]()
+    public let name: String?
     
     
     // MARK: Methods
     
+    /// Passes this deep link to the root module so that it opens the last module in the elements.
+    /// - Parameter animated: Specify `true` to animate the opening transition, 
+    /// or `false` if you do not want the transition to be animated. The default value is `true`.
+    @inlinable public func open(animated: Bool = true) -> Void {
+        RAModule.open(deeplink: self, animated: animated)
+    }
+    
     /// Returns a new deep link where the given module added to the top of this link.
     /// - Parameter moduleName: The name associated with a specific module.
     /// - Parameter context: The context to be provided to this module.
-    public func then(to moduleName: String, with context: RAContext? = nil) -> RADeepLink {
-        let element = Element(name: name, context: context)
+    @inlinable public func then(to moduleName: String, with context: RAContext? = nil) -> RADeepLink {
+        let element = Element(name: moduleName, context: context)
         return then(to: element)
     }
     
-    /// Returns a new deep link where the element to the top of this link.
-    public func then(to element: Element) -> RADeepLink {
-        var next = self
-        next.elements.append(element)
-        return next
+    /// Returns a new deep link where the given element added to the top of this link.
+    @inlinable public func then(to element: Element) -> RADeepLink {
+        return RADeepLink(elements: elements.appending(element), name: name)
     }
     
     /// Returns a new deep link with the given name.
-    public func named(_ linkName: String) -> RADeepLink {
-        var new = self
-        new.name = linkName
-        return new
+    @inlinable public func named(_ linkName: String) -> RADeepLink {
+        return RADeepLink(elements: elements, name: linkName)
     }
     
     
     // MARK: Init
     
     /// Creates a deep link instance.
-    private init() {}
+    @inlinable internal init(elements: [Element] = [], name: String? = nil) {
+        self.elements = elements
+        self.name = name
+    }
     
 }
 
 
 
+// MARK: - Element
+
 extension RADeepLink {
     
-    /// An element of the link that associated with a specific module.
-    public struct Element: CustomStringConvertible {
+    /// An element of the link that associated with a certain module.
+    public struct Element {
         
-        /// The string associated with the name of a specific module.
+        /// The string associated with the name of a certain module.
         public let name: String
         
-        /// A context to be provided to a specific module.
+        /// A context to be provided to a certain module.
         public let context: RAContext?
         
-        /// A textual representation of this link element.
-        ///
-        /// This property returns the name of this element.
-        public var description: String { name }
-        
         /// Creates a link element instance.
-        /// - Parameter name: The name associated with the specific module.
+        /// - Parameter name: The name associated with the certain module.
         /// - Parameter context: The context to be provided to this module.
-        public init(name: String, context: RAContext?) {
+        @inlinable public init(name: String, context: RAContext?) {
             self.name = name
             self.context = context
         }
         
     }
+    
+}
+
+
+
+// MARK: - CustomStringConvertible
+
+extension RADeepLink: CustomStringConvertible {
+    
+    /// A textual representation of this deep link.
+    ///
+    /// For example, the link to the *Post* module may look like this:
+    ///
+    ///     print(deeplink)
+    ///     // Prints "DeepLink(OpenPost): Main -> Feed -> Post"
+    ///
+    public var description: String {
+        let maybeName = if let name { "(\(name))" } else { "" }
+        return "DeepLink\(maybeName):" + elements.toString(separator: " –> ")
+    }
+    
+}
+
+
+extension RADeepLink.Element: CustomStringConvertible {
+    
+    /// A textual representation of this link element.
+    ///
+    /// This property returns the name of this element.
+    public var description: String { name }
     
 }

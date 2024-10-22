@@ -5,7 +5,7 @@ import os
 ///
 /// You almost never create a log message directly. You only filter and process it inside a logger.
 ///
-/// The log message looks like in the following example:
+/// A log message may look like in the following example:
 ///
 ///     message.author        // "Menu-Interactor"
 ///     message.text          // "User gained 97 points out of 100"
@@ -15,9 +15,8 @@ import os
 ///     message.info.function // "child(_:didCompleteWith:)"
 ///     message.info.line     // 132
 ///     message.timestamp     // "2023-06-09 14:05:43 +0000"
-///     message.uuid          // "D24A7E1C-B5D9-4F53-B96F-C8B248172DF8"
 ///
-public struct RALogMessage: Equatable {
+public struct RALogMessage: Equatable, Codable {
     
     /// The string that describes an author of this log message.
     public let author: String
@@ -37,9 +36,6 @@ public struct RALogMessage: Equatable {
     /// The time when this log message was created.
     public let timestamp: Date
     
-    /// The universally unique value of this log message.
-    public let uuid: UUID
-    
     /// Creates a log message instance.
     /// - Parameter author:    The string that describes an author of this log message.
     /// - Parameter text:      The text of this log message.
@@ -48,14 +44,13 @@ public struct RALogMessage: Equatable {
     /// - Parameter info:      The information about a file, function and line this instance originates from.
     /// - Parameter timestamp: The time when this log message was created.
     /// - Parameter uuid:      The universally unique value of this log message.
-    public init(author: String, text: String, category: String, level: RALogLevel, info: RAInfo, timestamp: Date = .init(), uuid: UUID = .init()) {
+    public init(author: String, text: String, category: String, level: RALogLevel, info: RAInfo, timestamp: Date = .init()) {
         self.author = author
         self.text = text
         self.category = category
         self.level = level
         self.info = info
         self.timestamp = timestamp
-        self.uuid = uuid
     }
     
 }
@@ -65,7 +60,7 @@ public struct RALogMessage: Equatable {
 /// A level associated how important a log message is.
 ///
 /// There are 6 kinds of log level: `.trace`, `.debug`, `.info`, `.warning`, `.error` and `.fatal`. They are ordered by their severity, with `.trace` being the least severe and `.fatal` being the most severe.
-public enum RALogLevel: String, CaseIterable, Comparable {
+public enum RALogLevel: String, CaseIterable, Comparable, Equatable, Codable {
     
     /// The most detailed information of all levels that's used in rare cases where you need the full visibility of what happening in your application.
     /// In this case, the logging is very verbose where you see every step of an algorithm, method, etc.
@@ -92,38 +87,38 @@ public enum RALogLevel: String, CaseIterable, Comparable {
     case fatal
     
     /// An emoji associated with this log level.
-    public var emoji: String {
-        switch self {
-        case .trace:   return "⚪️"
-        case .debug:   return "🟢"
-        case .info:    return "🔵"
-        case .warning: return "🟡"
-        case .error:   return "🟠"
-        case .fatal:   return "🔴"
+    @inlinable public var emoji: String {
+        return switch self {
+        case .trace:   "⚪️"
+        case .debug:   "🟢"
+        case .info:    "🔵"
+        case .warning: "🟡"
+        case .error:   "🟠"
+        case .fatal:   "🔴"
         }
     }
     
     /// An integer associated with this log level.
-    public var integerValue: Int {
-        switch self {
-        case .trace:   return 0
-        case .debug:   return 1
-        case .info:    return 2
-        case .warning: return 3
-        case .error:   return 4
-        case .fatal:   return 5
+    @inlinable public var integerValue: Int {
+        return switch self {
+        case .trace:   0
+        case .debug:   1
+        case .info:    2
+        case .warning: 3
+        case .error:   4
+        case .fatal:   5
         }
     }
     
     /// An OSLogType value converted from this log level.
-    public var toOSLogType: OSLogType {
-        switch self {
-        case .trace:   return .debug
-        case .debug:   return .default
-        case .info:    return .info
-        case .warning: return .error
-        case .error:   return .error
-        case .fatal:   return .fault
+    @inlinable public var toOSLogType: OSLogType {
+        return switch self {
+        case .trace:   .debug
+        case .debug:   .default
+        case .info:    .info
+        case .warning: .error
+        case .error:   .error
+        case .fatal:   .fault
         }
     }
     
@@ -133,18 +128,9 @@ public enum RALogLevel: String, CaseIterable, Comparable {
 
 // MARK: - Extensions
 
-extension RALogMessage {
-    
-    public static func == (lhs: RALogMessage, rhs: RALogMessage) -> Bool {
-        return lhs.author == rhs.author && lhs.text == rhs.text && lhs.category == rhs.category && lhs.level == rhs.level
-            && lhs.info == rhs.info && lhs.timestamp == rhs.timestamp && lhs.uuid == rhs.uuid
-    }
-    
-}
-
 extension RALogLevel {
     
-    public static func < (lhs: RALogLevel, rhs: RALogLevel) -> Bool {
+    @inlinable public static func < (lhs: RALogLevel, rhs: RALogLevel) -> Bool {
         return lhs.integerValue < rhs.integerValue
     }
     

@@ -6,7 +6,7 @@ internal extension Dictionary {
     ///     dict.hasKey(2) // true
     ///     dict.hasKey(3) // false
     ///
-    func hasKey(_ key: Key) -> Bool { self[key] != nil }
+    @inlinable func hasKey(_ key: Key) -> Bool { self[key] != nil }
     
 }
 
@@ -21,7 +21,7 @@ internal extension Dictionary.Keys {
     ///     let dict = ["a": 1, "b": 2]
     ///     let keys: [String] = dict.keys.asArray // ["a", "b"]
     ///
-    var asArray: [Key] {
+    @inlinable var asArray: [Key] {
         return Array(self)
     }
     
@@ -38,7 +38,7 @@ internal extension Dictionary.Values {
     ///     let dict = ["a": 1, "b": 2]
     ///     let values: [Int] = dict.values.asArray // [1, 2]
     ///
-    var asArray: [Value] {
+    @inlinable var asArray: [Value] {
         return Array(self)
     }
     
@@ -48,7 +48,7 @@ internal extension Dictionary.Values {
 internal extension Dictionary where Key == String, Value == RAModule {
     
     /// Returns a boolean value that indicates whether the given module-value exists in this dictionary.
-    func contains(value module: RAModule) -> Bool {
+    @inlinable func contains(value module: RAModule) -> Bool {
         guard let child = self[module.name] else { return false }
         return child === module
     }
