@@ -33,6 +33,7 @@ open class RAInteractor<ViewInterface>: RAAnyInteractor {
 
 
 /// An interactor that has implementations of the main properties and methods.
+@MainActor
 open class RAAnyInteractor: RAComponent, RAIntegratable, RAModuleLifecycleDelegate, RAModuleDataProvider, RAModuleDataHandler {
     
     /// A module into which this interactor is integrated.

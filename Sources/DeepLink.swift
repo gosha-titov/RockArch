@@ -35,7 +35,7 @@ public struct RADeepLink {
     /// Passes this deep link to the root module so that it opens the last module in the elements.
     /// - Parameter animated: Specify `true` to animate the opening transition, 
     /// or `false` if you do not want the transition to be animated. The default value is `true`.
-    @inlinable public func open(animated: Bool = true) -> Void {
+    @MainActor @inlinable public func open(animated: Bool = true) -> Void {
         RAModule.open(deeplink: self, animated: animated)
     }
     

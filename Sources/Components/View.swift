@@ -22,6 +22,7 @@ import UIKit
 /// - Important: You should not redefine the implementation of these above properties,
 /// because the compiler provides it for you using internal properties.
 ///
+@MainActor
 public protocol RAView: RAComponent, RAIntegratable where Self: UIViewController {
     
     /// A communication interface from this view to a specific interactor of this module.

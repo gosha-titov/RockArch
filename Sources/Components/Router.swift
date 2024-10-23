@@ -23,6 +23,7 @@ import UIKit
 /// - Note: Each component can log messages by calling the `log(_:category:level:)` method.
 /// These messages are handled by the current black box with its loggers.
 ///
+@MainActor
 open class RARouter: NSObject, RAComponent, RAIntegratable, RARouterInterface {
     
     // MARK: - Properties
@@ -746,6 +747,7 @@ extension RARouter {
 
 
 /// A communication interface between an interactor and a router.
+@MainActor
 public protocol RARouterInterface {
     
     /// Completes this module by hiding it from the screen.

@@ -3,6 +3,7 @@
 /// The `RAIntegratable` protocol has a `module` property into which this component is integrated.
 /// Thereby, the integrated component reflects the module by having the same name and type as it.
 /// The `RAInteractor`, `RARouter`, `RAView` and `RABuilder` components conforms to this protocol.
+@MainActor
 public protocol RAIntegratable where Self: RAComponent {
     
     /// A module into which this component is integrated.
@@ -38,6 +39,7 @@ public extension RAIntegratable {
 /// `RABuilder` and `RAView` objects. They constitute the backbone of the application architecture.
 ///
 /// This protocol has the `state` property and two lifecycle methods: `setup()` and `clean()`.
+@MainActor
 public protocol RAComponent: RAAnyObject, RALoggable {
     
     /// The current state of this component.

@@ -38,6 +38,7 @@
 ///
 /// - Note: Each component can log messages by calling the `log(_:category:level:)` method.
 /// These messages are handled by the current black box with its loggers.
+@MainActor
 open class RABuilder: RAComponent, RAIntegratable {
     
     /// A module into which this builder is integrated.

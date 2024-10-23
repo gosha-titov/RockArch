@@ -153,6 +153,7 @@ import UIKit // to launch from the window
 /// - Note: Each component can log messages by calling the `log(_:category:level:)` method.
 /// These messages are handled by the current black box with its loggers.
 ///
+@MainActor
 open class RAModule: RAModuleInterface {
     
     // MARK: General Info
@@ -1054,6 +1055,7 @@ open class RAModule: RAModuleInterface {
 
 
 /// A communication interface from a component to its module into which it is integrated.
+@MainActor
 public protocol RAModuleInterface: RAComponent {
     
     /// A boolean value that indicates whether this module is loaded into the module tree.
@@ -1068,6 +1070,7 @@ public protocol RAModuleInterface: RAComponent {
 // MARK: - Delegates
 
 /// The methods adopted by the object you use to provide data for specific modules.
+@MainActor
 public protocol RAModuleDataProvider where Self: RAAnyObject {
     
     /// Provides a dependency for a specific child module when it loads into memory.
@@ -1083,6 +1086,7 @@ public protocol RAModuleDataProvider where Self: RAAnyObject {
 
 
 /// The methods adopted by the object you use to handle data from specific modules.
+@MainActor
 public protocol RAModuleDataHandler where Self: RAAnyObject {
     
     /// Handles the incoming value from a specific module from the entire module tree.
@@ -1101,6 +1105,7 @@ public protocol RAModuleDataHandler where Self: RAAnyObject {
 
 
 /// The methods adopted by the object you use to manage the lifecycle of a specific module.
+@MainActor
 public protocol RAModuleLifecycleDelegate where Self: RAAnyObject {
     
     /// Notifies the delegate that the module is loaded into the parent memory.
