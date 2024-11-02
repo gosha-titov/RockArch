@@ -100,7 +100,7 @@ import UIKit // to launch from the window
 /// which are called when the module is attached to or detached from the module tree.
 /// You can override these to perform additional initialization on your properties and, accordingly, to clean them.
 ///
-/// To be able to provide data to children and handle it from them, you use the `dataProvider` and `dataHandler` properties.
+/// To be able to provide data to children and handle it from them, you use the `dataHandler` property.
 /// Usually these three (including `lifecycleDelegate`) are the same object.
 /// By default, it's the interactor of this module, but you can change it by setting your values for them.
 ///
@@ -138,10 +138,10 @@ import UIKit // to launch from the window
 ///
 ///         static let name = "Settings"
 ///
-///         init(storage: SettingsStorageInterface) {
+///         init(manager: any SettingsManagerInterface) {
 ///             super.init(
 ///                 name:       SettingsModule.name,
-///                 interactor: SettingsInteractor(storage: storage),
+///                 interactor: SettingsInteractor(manager: manager),
 ///                 router:     SettingsRouter(),
 ///                 view:       SettingsView(),
 ///                 builder:    SettingsBuilder()
@@ -275,17 +275,22 @@ open class RAModule: RAModuleInterface {
     /// The object that acts as the lifecycle delegate of this module.
     public var lifecycleDelegate: RAModuleLifecycleDelegate
     
-    /// The object that provides the data for specific modules.
-    public var dataProvider: RAModuleDataProvider
-    
     /// The object that handles the data from specific modules.
     public var dataHandler: RAModuleDataHandler
     
     
     // MARK: - Opening DeepLink
     
-    @inlinable static func open(deeplink: RADeepLink, animated: Bool) -> Void {
-        
+    static func open(deeplink: RADeepLink, animated: Bool) -> Void {
+        guard let root else {
+            RABlackBox.error("There is no root module to open a deep link", author: "Module", category: .moduleRouting)
+            return
+        }
+        root.open(deeplink: deeplink, animated: animated)
+    }
+    
+    private func open(deeplink: RADeepLink, animated: Bool) -> Void {
+        log("Couldn't open a deep link because deeplinks are not supported yet", category: .moduleRouting, level: .error)
     }
     
     
@@ -473,19 +478,17 @@ open class RAModule: RAModuleInterface {
         for child in children.values {
             handleResult(from: child)
         }
-        let result = dataProvider.result()
-        return result
+        return interactor.result()
     }
     
     /// Provides a specified context (otherwise, provided one) to the given child module.
     /// - Returns: `True` if this child module can be started; otherwise, `false`.
-    private func provideContext(priorityСontext: RAContext? = nil, to child: RAModule) -> Bool {
+    private func provideContext(_ context: RAContext? = nil, to child: RAModule) -> Bool {
         guard child.isInactive else {
             log("Couldn't provide a context to the `\(child.name)` child module because it was already started",
                 category: .moduleManagement, level: .error)
             return false
         }
-        let context = priorityСontext ?? dataProvider.context(forChildModuleWithName: child.name)
         return child.canStart(with: context)
     }
     
@@ -580,7 +583,7 @@ open class RAModule: RAModuleInterface {
                 category: .moduleManagement, level: .warning)
             return false
         }
-        let childCanStart = provideContext(priorityСontext: context, to: child)
+        let childCanStart = provideContext(context, to: child)
         guard childCanStart else {
             log("Couldn't start the `\(child.name)` child module",
                 category: .moduleManagement, level: .error)
@@ -729,8 +732,7 @@ open class RAModule: RAModuleInterface {
                 category: .moduleManagement, level: .error)
             return nil
         }
-        let dependency = dataProvider.dependency(forChildModuleWithName: childName)
-        return builder.buildChildModule(byName: childName, with: dependency)
+        return builder.buildChildModule(byName: childName)
     }
     
     
@@ -1038,7 +1040,6 @@ open class RAModule: RAModuleInterface {
         self.builder = builder
         lifecycleDelegate = interactor
         dataHandler = interactor
-        dataProvider = interactor
         log("Created", category: .moduleLifecycle)
         RALeakDetector.register(self)
         RALeakDetector.register(view) // It can't register by itself
@@ -1068,22 +1069,6 @@ public protocol RAModuleInterface: RAComponent {
 
 
 // MARK: - Delegates
-
-/// The methods adopted by the object you use to provide data for specific modules.
-@MainActor
-public protocol RAModuleDataProvider where Self: RAAnyObject {
-    
-    /// Provides a dependency for a specific child module when it loads into memory.
-    func dependency(forChildModuleWithName childName: String) -> RADependency?
-    
-    /// Provides a context for a specific child module when it starts.
-    func context(forChildModuleWithName childName: String) -> RAContext?
-    
-    /// Provides the work result of the module.
-    func result() -> RAResult?
-    
-}
-
 
 /// The methods adopted by the object you use to handle data from specific modules.
 @MainActor

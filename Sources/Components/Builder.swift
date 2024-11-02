@@ -1,28 +1,30 @@
+//
 // Implementation notes
 // ====================
 //
 // When a module needs to load a child module into the module tree,
 // it creates this by calling the `buildChildModule(byName:with:)` method.
+//
 
-/// A builder that is responsible for creating child modules by their associated names and providing the necessary dependencies.
+/// A builder that is responsible for creating child modules by their associated names, and for providing necessary dependencies to them.
 ///
-/// The builder is used when a module has child modules. So, it uses a builder to create them.
+/// The builder is used when a module has child modules. So, the module uses its builder to create them.
 ///
-/// You always define a new class that subclasses the `RABuilder` class and override the `build(by:with:)` method.
+/// You always define a new class that subclasses the `RABuilder` class and override the `build(by:)` method.
+/// If child modules have dependencies, you always provide your own initializer with these dependencies.
 /// For example, you create a builder for the *Main* module that can have the *Messages*, *Settings* and *Alert* child modules:
 ///
 ///     final class MainBuilder: RABuilder {
 ///
-///         override func build(by name: String, with dependency: RADependency?) -> RAModule? {
+///         private let messagesService: any MessagesServiceInterface
+///         private let settingsManager: any SettingsManagerInterface
+///
+///         override func build(by name: String) -> RAModule? {
 ///             switch name {
 ///             case MessagesModule.name:
-///                 if let service = dependency as? MessagesServiceInterface {
-///                     return MessagesModule(service: service)
-///                 }
+///                 return MessagesModule(service: messagesService)
 ///             case SettingsModule.name:
-///                 if let storage = dependency as? SettingsStorageInterface {
-///                     return SettingsModule(storage: storage)
-///                 }
+///                 return SettingsModule(manager: settingsManager)
 ///             case AlertModule.name:
 ///                 return AlertModule()
 ///             default:
@@ -30,10 +32,15 @@
 ///             }
 ///         }
 ///
+///         init(messagesService: any MessagesServiceInterface, settingsManager: any SettingsManagerInterface) {
+///             self.messagesService = messagesService
+///             self.settingsManager = settingsManager
+///         }
+///
 ///     }
 ///
 /// The builder has a lifecycle consisting of the `setup()` and `clean()` methods,
-/// which are called when the module is attached to or detached from the module tree.
+/// which are called when the module is attached-to or detached-from the module tree.
 /// You can override these to perform additional initialization on your properties and, accordingly, to clean them.
 ///
 /// - Note: Each component can log messages by calling the `log(_:category:level:)` method.
@@ -83,10 +90,10 @@ open class RABuilder: RAComponent, RAIntegratable {
     ///
     ///         static let name = "Settings"
     ///
-    ///         init(storage: SettingsStorageInterface) {
+    ///         init(manager: any SettingsManagerInterface) {
     ///             super.init(
     ///                 name:       SettingsModule.name,
-    ///                 interactor: SettingsInteractor(storage: storage),
+    ///                 interactor: SettingsInteractor(manager: manager),
     ///                 router:     SettingsRouter(),
     ///                 view:       SettingsView(),
     ///                 builder:    SettingsBuilder()
@@ -97,33 +104,28 @@ open class RABuilder: RAComponent, RAIntegratable {
     ///
     /// Secondly, use a switch statement to figure out which of the modules should be built and return the corresponding instance:
     ///
-    ///     override func build(by name: String, with dependency: RADependency?) -> RAModule? {
+    ///     override func build(by name: String) -> RAModule? {
     ///         switch name {
-    ///         case MessagesModule.name: 
-    ///             if let service = dependency as? MessagesServiceInterface {
-    ///                 return MessagesModule(service: service)
-    ///             }
+    ///         case MessagesModule.name:
+    ///             return MessagesModule(service: messagesService)
     ///         case SettingsModule.name:
-    ///             if let storage = dependency as? SettingsStorageInterface {
-    ///                 return SettingsModule(storage: storage)
-    ///             }
+    ///             return SettingsModule(manager: settingsManager)
     ///         case AlertModule.name:
     ///             return AlertModule()
-    ///         ...
-    ///         default: 
+    ///         default:
     ///             return nil
     ///         }
     ///     }
     ///
     /// You don't need to call the `super` method, because the default implementation does nothing.
     /// - Returns: The built child module; otherwise, `nil`.
-    open func build(by name: String, with dependency: RADependency?) -> RAModule? { return nil }
+    open func build(by name: String) -> RAModule? { return nil }
     
     /// Builds a child module by its associated name and provides a dependency if needed.
     /// - Returns: The built child module; otherwise, `nil`.
-    internal final func buildChildModule(byName childName: String, with dependency: RADependency?) -> RAModule? {
-        guard let child = build(by: childName, with: dependency) else {
-            log("Couldn't build a module by name `\(childName)`",
+    internal final func buildChildModule(byName childName: String) -> RAModule? {
+        guard let child = build(by: childName) else {
+            log("Couldn't build a child module by name `\(childName)`",
                 category: .moduleManagement, level: .error)
             return nil
         }

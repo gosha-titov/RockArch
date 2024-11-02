@@ -27,6 +27,7 @@ public struct RADeepLink {
     ///
     /// You usually name links like: *OpenChat* or *ShowFriendProfile*.
     /// Names do not affect anything. They are used to understand more clearly what should happen.
+    /// It's used for debugging or logging.
     public let name: String?
     
     
@@ -35,7 +36,7 @@ public struct RADeepLink {
     /// Passes this deep link to the root module so that it opens the last module in the elements.
     /// - Parameter animated: Specify `true` to animate the opening transition, 
     /// or `false` if you do not want the transition to be animated. The default value is `true`.
-    @MainActor @inlinable public func open(animated: Bool = true) -> Void {
+    @MainActor public func open(animated: Bool = true) -> Void {
         RAModule.open(deeplink: self, animated: animated)
     }
     

@@ -34,7 +34,7 @@ open class RAInteractor<ViewInterface>: RAAnyInteractor {
 
 /// An interactor that has implementations of the main properties and methods.
 @MainActor
-open class RAAnyInteractor: RAComponent, RAIntegratable, RAModuleLifecycleDelegate, RAModuleDataProvider, RAModuleDataHandler {
+open class RAAnyInteractor: RAComponent, RAIntegratable, RAModuleLifecycleDelegate, RAModuleDataHandler {
     
     /// A module into which this interactor is integrated.
     public final var module: RAModuleInterface? { _module }
@@ -178,40 +178,6 @@ open class RAAnyInteractor: RAComponent, RAIntegratable, RAModuleLifecycleDelega
     
     
     // MARK: - Module Data Provider
-    
-    /// Called when the module of this interactor loads a specific child module into memory.
-    ///
-    /// If a child module needs a dependency in order to be loaded, you should pass it by overriding this method.
-    /// For example:
-    ///
-    ///     override func dependency(forChildModuleWithName childName: String) -> RADependency? {
-    ///         switch childName {
-    ///         case MessagesModule.name: return service
-    ///         case SettingsModule.name: return storage
-    ///         default: return nil
-    ///         }
-    ///     }
-    ///
-    /// You don't need to call the `super` method, because the default implementation does nothing.
-    /// - Returns: A necessary dependency for a child module to be loaded.
-    open func dependency(forChildModuleWithName childName: String) -> RADependency? { nil }
-    
-    /// Called when the module of this interactor starts a specific child module.
-    ///
-    /// If a child module needs a context in order to be started, you should pass it by overriding this method.
-    /// For example:
-    ///
-    ///     override func context(forChildModuleWithName childName: String) -> RAContext? {
-    ///         switch childName {
-    ///         case FriendProfile.name: return friendID
-    ///         case FullScreenImageModule.name: return image
-    ///         default: return nil
-    ///         }
-    ///     }
-    ///
-    /// You don't need to call the `super` method, because the default implementation does nothing.
-    /// - Returns: A necessary context for a child module to be started.
-    open func context(forChildModuleWithName childName: String) -> RAContext? { nil }
     
     /// Called when the module of this interactor completed its work.
     ///
